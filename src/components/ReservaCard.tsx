@@ -36,7 +36,7 @@ const ReservaCard: React.FC<ReservaCardProps> = ({
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-lg">{reserva.huesped}</h3>
+                        <h3 className="font-semibold text-lg">{reserva.huespedNombre}</h3>
                         <span className={`text-xs px-2 py-1 rounded ${getEstadoColor(reserva.estado)}`}>
                             {reserva.estado.toUpperCase()}
                         </span>
