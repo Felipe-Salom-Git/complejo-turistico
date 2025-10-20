@@ -1,13 +1,11 @@
-// 📍 src/app/layout.tsx
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
+import '../styles/globals.css';
+import { ThemeProvider } from './providers/ThemeProvider';
+import { AppShell } from ' @/components/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Sistema Complejo Turístico',
-  description: 'Sistema de gestión para complejos turísticos',
+  title: 'Las Gaviotas & Fontana - Sistema de Gestión',
+  description: 'Sistema de gestión del complejo turístico',
 };
 
 export default function RootLayout({
@@ -16,10 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body className={inter.className}>
-        {/* Este layout aplica a TODA la aplicación */}
-        {children}
+    <html lang="es" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
       </body>
     </html>
   );

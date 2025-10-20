@@ -1,75 +1,113 @@
-// 📍 src/app/(dashboard)/layout.tsx
-'use client';
-
 import React, { useState } from 'react';
-import { Sidebar } from ' @/components/ui/Sidebar';
-import { Header } from ' @/components/ui/Header';
-import { usePathname } from 'next/navigation';
+import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './components/pages/Dashboard';
+import { Reservas } from './components/pages/Reservas';
+import { Huespedes } from './components/pages/Huespedes';
+import { Stock } from './components/pages/Stock';
+import { Mantenimiento } from './components/pages/Mantenimiento';
+import { PaseDiario } from './components/pages/PaseDiario';
+import { Servicio } from './components/pages/Servicio';
+import { Calendario } from './components/pages/Calendario';
+import { Cotizaciones } from './components/pages/Cotizaciones';
+import { Metricas } from './components/pages/Metricas';
+import { Operaciones } from './components/pages/Operaciones';
+import { EditorMensajes } from './components/pages/EditorMensajes';
+import { EditorPaleta } from './components/pages/EditorPaleta';
+import { PanelAdministrativo } from './components/pages/PanelAdministrativo';
 
-// Mapeo de títulos para cada página
-const pageTitles: Record<string, { title: string; description?: string }> = {
-  '/': {
-    title: 'Dashboard Principal',
-    description: 'Resumen operativo del complejo'
-  },
-  '/reservas': {
-    title: 'Gestión de Reservas',
-    description: 'Administra todas las reservas del sistema'
-  },
-  '/huespedes': {
-    title: 'Gestión de Huéspedes',
-    description: 'Administra la información de huéspedes'
-  },
-  '/unidades': {
-    title: 'Unidades y Habitaciones',
-    description: 'Control de disponibilidad y estados'
-  },
-  '/tickets': {
-    title: 'Tickets de Pase',
-    description: 'Sistema de comunicación entre turnos'
-  },
-  '/reportes': {
-    title: 'Reportes y Estadísticas',
-    description: 'Análisis y métricas del complejo'
-  },
+export type ThemeColors = {
+  primary: string;
+  secondary: string;
+  background: string;
+  backgroundDark: string;
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+function App() {
+  const [currentPage, setCurrentPage] = useState('/');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [themeColors, setThemeColors] = useState<ThemeColors>({
+    primary: '#2A7B79',
+    secondary: '#F5B841',
+    background: '#F9FAFB',
+    backgroundDark: '#111827',
+  });
 
-  // Obtener título y descripción según la página actual
-  const currentPage = pageTitles[pathname] || {
-    title: 'Sistema Turístico',
-    description: 'Panel de administración'
+  // Update dark mode class on document
+  React.useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  // Update CSS variables
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--color-primary', themeColors.primary);
+    document.documentElement.style.setProperty('--color-secondary', themeColors.secondary);
+  }, [themeColors]);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case '/':
+        return <Dashboard />;
+      case '/reservas':
+        return <Reservas />;
+      case '/huespedes':
+        return <Huespedes />;
+      case '/stock':
+        return <Stock />;
+      case '/mantenimiento':
+        return <Mantenimiento />;
+      case '/pase-diario':
+        return <PaseDiario />;
+      case '/servicio':
+        return <Servicio />;
+      case '/calendario':
+        return <Calendario />;
+      case '/cotizaciones':
+        return <Cotizaciones />;
+      case '/metricas':
+        return <Metricas />;
+      case '/operaciones':
+        return <Operaciones />;
+      case '/editor-mensajes':
+        return <EditorMensajes />;
+      case '/editor-paleta':
+        return <EditorPaleta themeColors={themeColors} setThemeColors={setThemeColors} />;
+      case '/panel-administrativo':
+        return <PanelAdministrativo />;
+      default:
+        return <Dashboard />;
+    }
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar 
-        userRol="recepcion" // En una app real, esto vendría de un context de auth
-        isCollapsed={isSidebarCollapsed}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <Navbar
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        onNavigate={setCurrentPage}
       />
-      
-      {/* Contenido principal */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <Header 
-          onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          pageTitle={currentPage.title}
-          pageDescription={currentPage.description}
+      <div className="flex">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          setCollapsed={setSidebarCollapsed}
+          currentPage={currentPage}
+          onNavigate={setCurrentPage}
         />
-        
-        {/* Contenido de la página */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
+        <main
+          className={`flex-1 transition-all duration-300 ${
+            sidebarCollapsed ? 'ml-16' : 'ml-64'
+          } mt-16 p-6`}
+        >
+          {renderPage()}
         </main>
       </div>
     </div>
   );
 }
+
+export default App;

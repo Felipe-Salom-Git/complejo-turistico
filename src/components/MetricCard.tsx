@@ -1,46 +1,58 @@
-// 📍 src/components/MetricCard.tsx
 import React from 'react';
+import { LucideIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface MetricCardProps {
-  titulo: string;
-  valor: number | string;
-  icono?: React.ReactNode;
-  tipo?: 'primary' | 'success' | 'warning' | 'danger';
-  cambioPorcentaje?: number;
+  title: string;
+  value: string | number;
+  icon: LucideIcon;
+  description?: string;
+  trend?: {
+    value: number;
+    isPositive: boolean;
+  };
+  color?: string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({
-  titulo,
-  valor,
-  icono,
-  tipo = 'primary',
-  cambioPorcentaje
-}) => {
-  const colores = {
-    primary: 'border-l-blue-500',
-    success: 'border-l-green-500',
-    warning: 'border-l-yellow-500',
-    danger: 'border-l-red-500'
-  };
-
+export function MetricCard({
+  title,
+  value,
+  icon: Icon,
+  description,
+  trend,
+  color = 'var(--color-primary)',
+}: MetricCardProps) {
   return (
-    <div className={`bg-white p-6 rounded-lg shadow-sm border-l-4 ${colores[tipo]}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{titulo}</p>
-          <p className="text-2xl font-bold text-gray-900">{valor}</p>
-          {cambioPorcentaje !== undefined && (
-            <p className={`text-sm ${
-              cambioPorcentaje >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {cambioPorcentaje >= 0 ? '↗' : '↘'} {Math.abs(cambioPorcentaje)}%
-            </p>
-          )}
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
+          {title}
+        </CardTitle>
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center"
+          style={{ backgroundColor: `${color}20` }}
+        >
+          <Icon className="w-5 h-5" style={{ color }} />
         </div>
-        {icono && <div className="text-gray-400 text-2xl">{icono}</div>}
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl mb-1">{value}</div>
+        {description && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {description}
+          </p>
+        )}
+        {trend && (
+          <p
+            className={`text-sm mt-2 ${
+              trend.isPositive ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% vs mes
+            anterior
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
-};
-
-export default MetricCard;
+}
