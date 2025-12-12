@@ -1,5 +1,5 @@
-import { Dashboard } from ' @/components/pages/Dashboard';
+import Metricas from './metricas/page';
 
 export default function HomePage() {
-  return <Dashboard />;
+  return <Metricas />;
 }

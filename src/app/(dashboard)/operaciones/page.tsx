@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Settings,
   Download,
@@ -14,9 +14,9 @@ import {
   Users,
   Home,
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export function Operaciones() {
+export default function Operaciones() {
   const backupHistory = [
     { id: 1, fecha: '2025-10-17 02:00', tipo: 'Completo', tamaño: '2.4 GB' },
     { id: 2, fecha: '2025-10-16 02:00', tipo: 'Completo', tamaño: '2.3 GB' },

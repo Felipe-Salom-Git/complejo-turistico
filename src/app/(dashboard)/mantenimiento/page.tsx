@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,18 +13,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { MetricCard } from '../MetricCard';
+} from '@/components/ui/select';
+import { MetricCard } from '@/components/MetricCard';
 import { Wrench, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
-export function Mantenimiento() {
+export default function Mantenimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
 

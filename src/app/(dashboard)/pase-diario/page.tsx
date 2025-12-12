@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Ticket, DollarSign } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,8 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { MetricCard } from '../MetricCard';
+} from '@/components/ui/table';
+import { MetricCard } from '@/components/MetricCard';
 import { Users, TrendingUp } from 'lucide-react';
 import {
   Dialog,
@@ -23,17 +23,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { Label } from '../ui/label';
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
+} from '@/components/ui/select';
 
-export function PaseDiario() {
+export default function PaseDiario() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const pases = [

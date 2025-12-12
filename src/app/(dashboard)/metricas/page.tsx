@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { MetricCard } from '../MetricCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MetricCard } from '@/components/MetricCard';
 import {
   DollarSign,
   TrendingUp,
@@ -28,7 +28,7 @@ import {
   Area,
 } from 'recharts';
 
-export function Metricas() {
+export default function Metricas() {
   const revenueData = [
     { month: 'Ene', ingresos: 45000, gastos: 25000 },
     { month: 'Feb', ingresos: 52000, gastos: 28000 },

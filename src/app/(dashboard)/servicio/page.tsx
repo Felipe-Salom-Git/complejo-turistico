@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { ClipboardList, CheckCircle, Clock } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -13,11 +13,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { MetricCard } from '../MetricCard';
+} from '@/components/ui/table';
+import { MetricCard } from '@/components/MetricCard';
 import { UserCheck, Users } from 'lucide-react';
 
-export function Servicio() {
+export default function Servicio() {
   const [activeTab, setActiveTab] = useState('recepcion');
 
   const tareasLimpieza = [

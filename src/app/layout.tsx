@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import '../styles/globals.css';
+import './globals.css';
 import { ThemeProvider } from './providers/ThemeProvider';
-import { AppShell } from ' @/components/AppShell';
+import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: 'Las Gaviotas & Fontana - Sistema de Gestión',

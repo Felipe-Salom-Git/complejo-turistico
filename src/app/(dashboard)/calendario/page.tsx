@@ -1,265 +1,436 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, Filter, Split, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { UNITS } from "@/lib/constants";
+import { useReservations, Reservation } from "@/contexts/ReservationsContext";
+import { useRouter } from "next/navigation";
 
-export function Calendario() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+const MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
-  const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-  const monthNames = [
-    'Enero',
-    'Febrero',
-    'Marzo',
-    'Abril',
-    'Mayo',
-    'Junio',
-    'Julio',
-    'Agosto',
-    'Septiembre',
-    'Octubre',
-    'Noviembre',
-    'Diciembre',
-  ];
+export default function Calendario() {
+  const router = useRouter();
+  const { reservations, updateReservation, splitReservation } = useReservations();
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 11, 1)); // December 2025
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterComplex, setFilterComplex] = useState<string>("all");
+  const [draggedReservation, setDraggedReservation] = useState<Reservation | null>(null);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [newReservationOpen, setNewReservationOpen] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [splitDate, setSplitDate] = useState<string>("");
+  const [splitUnit, setSplitUnit] = useState<string>("");
 
-  // Mock data for reservations
-  const reservations = {
-    '2025-10-17': [
-      { unidad: 'Cabaña 8', huesped: 'García, M.', tipo: 'checkin' },
-      { unidad: 'Suite 12', huesped: 'Rodríguez, J.', tipo: 'checkout' },
-    ],
-    '2025-10-18': [
-      { unidad: 'Cabaña 3', huesped: 'López, A.', tipo: 'checkin' },
-    ],
-    '2025-10-20': [
-      { unidad: 'Suite 7', huesped: 'Martínez, C.', tipo: 'checkout' },
-      { unidad: 'Cabaña 15', huesped: 'Pérez, L.', tipo: 'checkin' },
-    ],
-    '2025-10-22': [
-      { unidad: 'Suite 5', huesped: 'González, R.', tipo: 'checkin' },
-    ],
-    '2025-10-25': [
-      { unidad: 'Cabaña 8', huesped: 'García, M.', tipo: 'checkout' },
-    ],
-  };
-
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
+  const generateDays = () => {
     const days = [];
-
-    // Add empty cells for days before the month starts
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add all days in the month
-    for (let day = 1; day <= daysInMonth; day++) {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    
+    for (let i = 0; i < 14; i++) {
+      const day = new Date(firstDay);
+      day.setDate(firstDay.getDate() + i);
       days.push(day);
     }
-
     return days;
   };
 
-  const formatDate = (day: number) => {
-    const year = currentMonth.getFullYear();
-    const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(day).padStart(2, '0');
-    return `${year}-${month}-${dayStr}`;
+  const days = generateDays();
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + (direction === "next" ? 1 : -1));
+    setCurrentDate(newDate);
   };
 
-  const getReservationsForDay = (day: number) => {
-    const dateKey = formatDate(day);
-    return reservations[dateKey] || [];
+  const getReservationForUnitAndDate = (unitName: string, date: Date) => {
+    return reservations.find((res) => {
+      if (res.unit !== unitName) return false;
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const checkIn = new Date(res.checkIn.getFullYear(), res.checkIn.getMonth(), res.checkIn.getDate());
+      const checkOut = new Date(res.checkOut.getFullYear(), res.checkOut.getMonth(), res.checkOut.getDate());
+      return dateOnly >= checkIn && dateOnly < checkOut;
+    });
   };
 
-  const previousMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
-    );
+  const isCheckoutDay = (reservation: Reservation, date: Date): boolean => {
+    const checkOutDate = new Date(reservation.checkOut);
+    const compareDate = new Date(date);
+    return checkOutDate.getFullYear() === compareDate.getFullYear() &&
+           checkOutDate.getMonth() === compareDate.getMonth() &&
+           checkOutDate.getDate() === compareDate.getDate();
   };
 
-  const nextMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
-    );
+  const getStatusColor = (status: string | undefined, isDragging = false) => {
+    const baseColors = {
+      active: "bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-300",
+      checkout: "bg-rose-100 border-rose-300 text-rose-800 dark:bg-rose-900/30 dark:border-rose-700 dark:text-rose-300",
+      cleaning: "bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300",
+      default: "bg-gray-50 border-gray-200 text-gray-400 dark:bg-gray-800 dark:border-gray-700"
+    };
+    
+    const color = baseColors[status as keyof typeof baseColors] || baseColors.default;
+    return isDragging ? `${color} opacity-50 cursor-grabbing` : `${color} cursor-grab`;
   };
 
-  const isToday = (day: number) => {
-    const today = new Date();
-    return (
-      day === today.getDate() &&
-      currentMonth.getMonth() === today.getMonth() &&
-      currentMonth.getFullYear() === today.getFullYear()
-    );
+  const getStatusLabel = (status: string | undefined) => {
+    const labels = {
+      active: "Ocupado",
+      checkout: "Check-out",
+      cleaning: "Limpieza",
+      default: "Libre"
+    };
+    return labels[status as keyof typeof labels] || labels.default;
   };
 
-  const days = getDaysInMonth(currentMonth);
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, reservation: Reservation) => {
+    setDraggedReservation(reservation);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, targetUnit: string, targetDate: Date) => {
+    e.preventDefault();
+    
+    if (!draggedReservation) return;
+
+    const duration = Math.ceil((draggedReservation.checkOut.getTime() - draggedReservation.checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const newCheckIn = new Date(targetDate);
+    const newCheckOut = new Date(targetDate);
+    newCheckOut.setDate(newCheckOut.getDate() + duration);
+    
+    // Normalize times to noon
+    newCheckIn.setHours(12, 0, 0, 0);
+    newCheckOut.setHours(12, 0, 0, 0);
+
+    const hasConflict = reservations.some(res => {
+      if (res.id === draggedReservation.id || res.unit !== targetUnit) return false;
+      const resStart = new Date(res.checkIn);
+      const resEnd = new Date(res.checkOut);
+      resStart.setHours(12, 0, 0, 0);
+      resEnd.setHours(12, 0, 0, 0);
+      
+      return (newCheckIn < resEnd && newCheckOut > resStart);
+    });
+
+    if (hasConflict) {
+      alert("⚠️ Conflicto: Ya existe una reserva en esas fechas para esta unidad");
+      setDraggedReservation(null);
+      return;
+    }
+
+    updateReservation({
+      ...draggedReservation,
+      unit: targetUnit,
+      checkIn: newCheckIn,
+      checkOut: newCheckOut
+    });
+
+    setDraggedReservation(null);
+  };
+
+  // Split reservation
+  const handleSplitReservation = () => {
+    if (!selectedReservation || !splitDate || !splitUnit) return;
+
+    const splitDateTime = new Date(splitDate);
+    
+    if (splitDateTime <= selectedReservation.checkIn || splitDateTime >= selectedReservation.checkOut) {
+      alert("⚠️ La fecha de división debe estar dentro del rango de la reserva");
+      return;
+    }
+
+    splitReservation(selectedReservation.id, splitDateTime, splitUnit);
+
+    setSplitDialogOpen(false);
+    setSelectedReservation(null);
+    setSplitDate("");
+    setSplitUnit("");
+  };
+
+  const filteredUnits = UNITS.filter((unit) => {
+    if (filterType !== "all" && unit.type !== filterType) return false;
+    if (filterComplex !== "all" && unit.complex !== filterComplex) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl">Calendario</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Vista de reservas y disponibilidad
+          <h1 className="text-3xl font-bold">Calendario de Reservas</h1>
+          <p className="text-muted-foreground mt-1">
+            {UNITS.length} unidades • Arrastra para mover • Click derecho para dividir
           </p>
+        </div>
+        
+        <Button 
+          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
+          onClick={() => router.push('/nueva-reserva')}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Nueva Reserva
+        </Button>
+      </div>
+
+      {/* Split Dialog */}
+      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dividir Reserva</DialogTitle>
+          </DialogHeader>
+          {selectedReservation && (
+            <div className="space-y-4 pt-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm"><strong>Huésped:</strong> {selectedReservation.guestName}</p>
+                <p className="text-sm"><strong>Unidad actual:</strong> {selectedReservation.unit}</p>
+                <p className="text-sm">
+                  <strong>Fechas:</strong> {selectedReservation.checkIn.toLocaleDateString()} - {selectedReservation.checkOut.toLocaleDateString()}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Fecha de división</Label>
+                <Input 
+                  type="date" 
+                  value={splitDate}
+                  onChange={(e) => setSplitDate(e.target.value)}
+                  min={selectedReservation.checkIn.toISOString().split('T')[0]}
+                  max={selectedReservation.checkOut.toISOString().split('T')[0]}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nueva unidad (segunda parte)</Label>
+                <Select value={splitUnit} onValueChange={setSplitUnit}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar unidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNITS.filter(u => u.name !== selectedReservation.unit).map((unit) => (
+                      <SelectItem key={unit.id} value={unit.name}>
+                        {unit.name} - {unit.type} ({unit.complex})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
+                  onClick={handleSplitReservation}
+                  disabled={!splitDate || !splitUnit}
+                >
+                  <Split className="w-4 h-4 mr-2" />
+                  Dividir Reserva
+                </Button>
+                <Button variant="outline" onClick={() => setSplitDialogOpen(false)}>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Controls */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" onClick={() => navigateMonth("prev")}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="min-w-[200px] text-center">
+              <span className="font-semibold">
+                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+              </span>
+            </div>
+            <Button variant="outline" size="icon" onClick={() => navigateMonth("next")}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            
+            <Select value={filterComplex} onValueChange={setFilterComplex}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Complejo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los complejos</SelectItem>
+                <SelectItem value="Las Gaviotas">Las Gaviotas</SelectItem>
+                <SelectItem value="La Fontana">La Fontana</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tipo de unidad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="Cabaña">Cabañas</SelectItem>
+                <SelectItem value="Apartamento">Apartamentos</SelectItem>
+                <SelectItem value="Suite">Suites</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Card>
+
+      {/* Legend */}
+      <div className="flex items-center gap-6 px-4 flex-wrap">
+        <span className="text-sm font-medium">Leyenda:</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-emerald-100 border border-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700"></div>
+          <span className="text-sm">Ocupado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-rose-100 border border-rose-300 dark:bg-rose-900/30 dark:border-rose-700"></div>
+          <span className="text-sm">Check-out</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300 dark:bg-amber-900/30 dark:border-amber-700"></div>
+          <span className="text-sm">Limpieza (cada 3 días)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:border-gray-700"></div>
+          <span className="text-sm">Libre</span>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5" />
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={previousMonth}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentMonth(new Date())}
-              >
-                Hoy
-              </Button>
-              <Button variant="outline" size="icon" onClick={nextMonth}>
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+      {/* Calendar Grid */}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full">
+            {/* Header Row */}
+            <div className="flex border-b bg-muted/50 sticky top-0 z-10">
+              <div className="w-32 flex-shrink-0 p-3 border-r bg-muted/50">
+                <span className="font-medium text-sm">Unidad</span>
+              </div>
+              {days.map((day, index) => (
+                <div key={index} className="w-28 flex-shrink-0 p-3 border-r last:border-r-0 text-center">
+                  <div className="text-sm font-medium">{DAYS[day.getDay()]}</div>
+                  <div className="text-sm mt-1">{day.getDate()}/{day.getMonth() + 1}</div>
+                </div>
+              ))}
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {daysOfWeek.map((day) => (
-              <div
-                key={day}
-                className="text-center text-sm text-gray-500 dark:text-gray-400 py-2"
-              >
-                {day}
+
+            {/* Unit Rows */}
+            {filteredUnits.map((unit) => (
+              <div key={unit.id} className="flex border-b last:border-b-0">
+                <div className="w-32 flex-shrink-0 p-3 border-r bg-muted/30">
+                  <div className="font-medium text-sm">{unit.name}</div>
+                  <div className="text-xs text-muted-foreground">{unit.type}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{unit.complex}</div>
+                </div>
+                {days.map((day, index) => {
+                  const reservation = getReservationForUnitAndDate(unit.name, day);
+                  const isCheckout = reservation && isCheckoutDay(reservation, day);
+
+                  return (
+                    <div
+                      key={index}
+                      className="w-28 flex-shrink-0 p-2 border-r last:border-r-0"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, unit.name, day)}
+                    >
+                      {reservation ? (
+                        <div
+                          draggable={reservation.status !== "cleaning"}
+                          onDragStart={(e) => reservation.status !== "cleaning" && handleDragStart(e, reservation)}
+                          onContextMenu={(e) => {
+                            if (reservation.status !== "cleaning") {
+                              e.preventDefault();
+                              setSelectedReservation(reservation);
+                              setSplitDialogOpen(true);
+                            }
+                          }}
+                          className={`h-full min-h-[60px] p-2 rounded-lg border ${getStatusColor(
+                            isCheckout ? "checkout" : reservation.status,
+                            draggedReservation?.id === reservation.id
+                          )} transition-all hover:shadow-md ${reservation.status !== "cleaning" ? "active:cursor-grabbing" : ""}`}
+                          title={reservation.status !== "cleaning" ? "Arrastra para mover • Click derecho para dividir" : "Limpieza automática"}
+                        >
+                          <div className="text-xs font-medium truncate">
+                            {reservation.guestName}
+                          </div>
+                          <Badge variant="secondary" className="mt-1 text-xs bg-white/60 dark:bg-black/20 border-0">
+                            {getStatusLabel(isCheckout ? "checkout" : reservation.status)}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <div className="h-full min-h-[60px] rounded-lg border border-dashed border-gray-200 dark:border-gray-700 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all"></div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ))}
-            {days.map((day, index) => {
-              if (day === null) {
-                return <div key={`empty-${index}`} className="aspect-square" />;
-              }
-
-              const dayReservations = getReservationsForDay(day);
-              const hasReservations = dayReservations.length > 0;
-
-              return (
-                <div
-                  key={day}
-                  className={`aspect-square border rounded-lg p-2 ${
-                    isToday(day)
-                      ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                  } ${
-                    hasReservations
-                      ? 'hover:shadow-lg cursor-pointer transition-shadow'
-                      : ''
-                  }`}
-                >
-                  <div
-                    className={`text-sm ${
-                      isToday(day) ? 'font-bold' : ''
-                    }`}
-                  >
-                    {day}
-                  </div>
-                  <div className="mt-1 space-y-1">
-                    {dayReservations.slice(0, 2).map((res, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-xs px-1 py-0.5 rounded truncate ${
-                          res.tipo === 'checkin'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        } ${isToday(day) ? 'opacity-80' : ''}`}
-                      >
-                        {res.tipo === 'checkin' ? '→' : '←'} {res.unidad}
-                      </div>
-                    ))}
-                    {dayReservations.length > 2 && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        +{dayReservations.length - 2} más
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximos Check-ins</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.entries(reservations)
-                .flatMap(([date, resList]) =>
-                  resList
-                    .filter((res) => res.tipo === 'checkin')
-                    .map((res) => ({ ...res, date }))
-                )
-                .slice(0, 5)
-                .map((res, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-sm">{res.huesped}</p>
-                      <p className="text-xs text-gray-500">{res.unidad}</p>
-                    </div>
-                    <Badge variant="outline">{res.date}</Badge>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Total Unidades</div>
+          <div className="text-2xl font-bold mt-1">{filteredUnits.length}</div>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximos Check-outs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.entries(reservations)
-                .flatMap(([date, resList]) =>
-                  resList
-                    .filter((res) => res.tipo === 'checkout')
-                    .map((res) => ({ ...res, date }))
-                )
-                .slice(0, 5)
-                .map((res, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-sm">{res.huesped}</p>
-                      <p className="text-xs text-gray-500">{res.unidad}</p>
-                    </div>
-                    <Badge variant="outline">{res.date}</Badge>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
+        <Card className="p-4 bg-emerald-50 dark:bg-emerald-950/30">
+          <div className="text-sm text-emerald-700 dark:text-emerald-400">Ocupadas</div>
+          <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-300 mt-1">
+            {reservations.filter((r) => r.status === "active").length}
+          </div>
+        </Card>
+        <Card className="p-4 bg-rose-50 dark:bg-rose-950/30">
+          <div className="text-sm text-rose-700 dark:text-rose-400">Check-outs Hoy</div>
+          <div className="text-2xl font-bold text-rose-900 dark:text-rose-300 mt-1">
+            {reservations.filter((r) => {
+              const today = new Date();
+              return isCheckoutDay(r, today);
+            }).length}
+          </div>
+        </Card>
+        <Card className="p-4 bg-amber-50 dark:bg-amber-950/30">
+          <div className="text-sm text-amber-700 dark:text-amber-400">Limpiezas Hoy</div>
+          <div className="text-2xl font-bold text-amber-900 dark:text-amber-300 mt-1">
+            {reservations.filter((r) => {
+              const today = new Date();
+              return r.status === "cleaning" && isCheckoutDay(r, today);
+            }).length}
+          </div>
+        </Card>
+        <Card className="p-4 bg-gray-50 dark:bg-gray-900/50">
+          <div className="text-sm text-muted-foreground">Disponibles</div>
+          <div className="text-2xl font-bold mt-1">
+            {UNITS.length - reservations.filter((r) => r.status === "active").length}
+          </div>
         </Card>
       </div>
     </div>

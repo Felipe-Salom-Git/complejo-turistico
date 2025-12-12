@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,12 +13,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { Progress } from '../ui/progress';
-import { MetricCard } from '../MetricCard';
+} from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { MetricCard } from '@/components/MetricCard';
 import { TrendingDown, TrendingUp, AlertCircle } from 'lucide-react';
 
-export function Stock() {
+export default function Stock() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const items = [

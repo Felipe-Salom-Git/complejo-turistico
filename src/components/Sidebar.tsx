@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Palette,
   Shield,
+  PlusCircle,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -31,6 +32,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: SidebarProps) {
   const menuItems = [
     { id: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { id: '/nueva-reserva', label: 'Nueva Reserva', icon: PlusCircle },
     { id: 'separator1', type: 'separator', label: 'Base de Datos' },
     { id: '/huespedes', label: 'Huéspedes', icon: Users },
     { id: '/reservas', label: 'Reservas', icon: CalendarCheck },
@@ -52,12 +54,13 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
+      style={{ backgroundColor: 'var(--sidebar-bg, white)' }}
     >
       <div className="h-full flex flex-col">
-        <div className="p-2 flex justify-end">
+        <div className="p-2 flex justify-end border-b border-gray-200 dark:border-gray-700">
           <Button
             variant="ghost"
             size="icon"
@@ -71,7 +74,7 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 px-2">
+        <ScrollArea className="flex-1 px-2"  style={{ height: 'calc(100vh - 8rem)' }}>
           <div className="space-y-1">
             {menuItems.map((item) => {
               if (item.type === 'separator') {

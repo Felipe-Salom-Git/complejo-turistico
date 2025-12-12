@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Shield, Users, Settings, Lock, Activity } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Shield, Users, Lock, Activity } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -12,20 +12,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { Switch } from '../ui/switch';
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
-export function PanelAdministrativo() {
+export default function PanelAdministrativo() {
   const usuarios = [
     {
       id: 1,

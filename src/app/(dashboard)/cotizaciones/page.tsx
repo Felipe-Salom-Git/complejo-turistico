@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, FileText, Send } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Plus, Search, FileText, Send, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -21,20 +21,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { Label } from '../ui/label';
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { Textarea } from '../ui/textarea';
-import { MetricCard } from '../MetricCard';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { MetricCard } from '@/components/MetricCard';
 
-export function Cotizaciones() {
+export default function Cotizaciones() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const cotizaciones = [
@@ -291,7 +290,7 @@ export function Cotizaciones() {
                 placeholder="Buscar cotización..."
                 className="pl-9 w-64"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>

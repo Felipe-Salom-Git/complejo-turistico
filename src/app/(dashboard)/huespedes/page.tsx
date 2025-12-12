@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Eye, Edit, Trash2, Mail, Phone } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -20,11 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { Label } from '../ui/label';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-export function Huespedes() {
+export default function Huespedes() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const huespedes = [

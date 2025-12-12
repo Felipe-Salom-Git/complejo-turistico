@@ -1,6 +1,5 @@
 import { Reserva, EstadoReserva, PoliticaCancelacion, Plataforma } from '../types/reserva';
-import { MontosReserva } from '../types/montosReserva';
-import { Pago, FormaPago, ConceptoPago, DestinoPago } from '../types/pago';
+import { FormaPago, ConceptoPago, DestinoPago } from '../types/pago';
 import { mockHuespedes } from './mock-huespedes';
 
 // Helper para crear fechas
@@ -60,7 +59,7 @@ export const mockReservas: Reserva[] = [
   },
   {
     id: 'R002',
-        huespedId: mockHuespedes[1].id,
+    huespedId: mockHuespedes[1].id,
     huespedNombre: mockHuespedes[1].nombre, // Carlos Rodríguez
     fechaEntrada: crearFecha(2),
     fechaSalida: crearFecha(7),
@@ -115,7 +114,7 @@ export const mockReservas: Reserva[] = [
   },
   {
     id: 'R003',
-        huespedId: mockHuespedes[2].id,
+    huespedId: mockHuespedes[2].id,
     huespedNombre: mockHuespedes[2].nombre, // Ana Silva
     fechaEntrada: crearFecha(-10),
     fechaSalida: crearFecha(-5),
@@ -162,7 +161,7 @@ export const mockReservas: Reserva[] = [
   },
   {
     id: 'R004',
-        huespedId: mockHuespedes[3].id,
+    huespedId: mockHuespedes[3].id,
     huespedNombre: mockHuespedes[3].nombre, // John Smith
     fechaEntrada: crearFecha(15),
     fechaSalida: crearFecha(25),
@@ -198,7 +197,7 @@ export const mockReservas: Reserva[] = [
   },
   {
     id: 'R005',
-       huespedId: mockHuespedes[4].id,
+    huespedId: mockHuespedes[4].id,
     huespedNombre: mockHuespedes[4].nombre, // Laura Martínez
     fechaEntrada: crearFecha(-3),
     fechaSalida: crearFecha(2),

@@ -5,7 +5,6 @@ import { Badge } from './ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 
@@ -24,7 +23,7 @@ export function Navbar({ darkMode, setDarkMode, onNavigate }: NavbarProps) {
   });
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50 shadow-sm">
+    <nav className="fixed top-0 left-0 right-0 h-16 border-b border-gray-200 dark:border-gray-700 z-50 shadow-sm" style={{ backgroundColor: 'var(--navbar-bg, white)' }}>
       <div className="h-full px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-xl text-[var(--color-primary)] dark:text-[var(--color-secondary)]">
