@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface Messages {
   confirmacionReserva: string;
@@ -17,7 +17,7 @@ interface MessagesContextType {
 }
 
 const defaultMensajes: Messages = {
-    confirmacionReserva: `Hola {nombre},
+  confirmacionReserva: `Hola {nombre},
 
 Tu reserva ha sido confirmada exitosamente.
 
@@ -33,7 +33,7 @@ Total: {total}
 
 Complejo Turístico Las Gaviotas & Fontana`,
 
-    recordatorioCheckin: `Hola {nombre},
+  recordatorioCheckin: `Hola {nombre},
 
 Te recordamos que tu check-in es mañana {checkin} a las 14:00 hs.
 
@@ -43,7 +43,7 @@ Si tienes alguna consulta, no dudes en contactarnos.
 
 ¡Hasta mañana!`,
 
-    bienvenida: `¡Bienvenido/a {nombre}!
+  bienvenida: `¡Bienvenido/a {nombre}!
 
 Esperamos que disfrutes tu estadía en {unidad}.
 
@@ -56,7 +56,7 @@ Ante cualquier consulta, comunícate con recepción.
 
 ¡Que tengas una excelente estadía!`,
 
-    agradecimiento: `Estimado/a {nombre},
+  agradecimiento: `Estimado/a {nombre},
 
 Gracias por elegirnos para tu estadía.
 
@@ -68,7 +68,7 @@ Si tienes algún comentario o sugerencia, nos encantaría escucharte.
 
 Complejo Turístico Las Gaviotas & Fontana`,
 
-    cotizacion: `Estimado/a {nombre},
+  cotizacion: `Estimado/a {nombre},
 
 Adjuntamos la cotización solicitada para tu reserva:
 
@@ -94,12 +94,27 @@ const MessagesContext = createContext<MessagesContextType | undefined>(undefined
 export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [mensajes, setMensajes] = useState<Messages>(defaultMensajes);
 
+  // Load from LocalStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('mensajes');
+    if (stored) {
+      setMensajes(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('mensajes', JSON.stringify(mensajes));
+  }, [mensajes]);
+
   const updateMensaje = (key: keyof Messages, value: string) => {
     setMensajes(prev => ({ ...prev, [key]: value }));
   };
 
   const saveMensajes = () => {
-    // In a real app, this would persist to backend
+    // Explicit save is handled by useEffect, but we keep this for API/Feedback purposes
+    // or if we switch to manual save mode later.
+    // For now, it just confirms.
     console.log('Mensajes guardados:', mensajes);
   };
 

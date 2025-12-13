@@ -2,9 +2,9 @@ import { ReservationsProvider } from '@/contexts/ReservationsContext';
 import { MaintenanceProvider } from '@/contexts/MaintenanceContext';
 import { DailyPassProvider } from '@/contexts/DailyPassContext';
 import { StaffProvider } from '@/contexts/StaffContext';
-import { MessagesProvider } from '@/contexts/MessagesContext';
-
 import { QuotationsProvider } from '@/contexts/QuotationsContext';
+import { MessagesProvider } from '@/contexts/MessagesContext';
+import { GuestsProvider } from '@/contexts/GuestsContext';
 
 export default function DashboardLayout({
   children,
@@ -17,9 +17,11 @@ export default function DashboardLayout({
         <DailyPassProvider>
           <StaffProvider>
             <QuotationsProvider>
-              <MessagesProvider>
-                {children}
-              </MessagesProvider>
+              <GuestsProvider>
+                <MessagesProvider>
+                  {children}
+                </MessagesProvider>
+              </GuestsProvider>
             </QuotationsProvider>
           </StaffProvider>
         </DailyPassProvider>

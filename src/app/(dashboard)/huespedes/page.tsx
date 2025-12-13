@@ -22,61 +22,58 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useGuests } from '@/contexts/GuestsContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function Huespedes() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const huespedes = [
-    {
-      id: 1,
-      nombre: 'García, María',
-      documento: '12345678',
-      email: 'maria.garcia@email.com',
-      telefono: '+54 9 11 1234-5678',
-      direccion: 'Av. Corrientes 1234, CABA',
-      reservasTotal: 3,
-      ultimaVisita: '2025-10-15',
-    },
-    {
-      id: 2,
-      nombre: 'Rodríguez, Juan',
-      documento: '23456789',
-      email: 'juan.rodriguez@email.com',
-      telefono: '+54 9 11 2345-6789',
-      direccion: 'Calle Falsa 123, Buenos Aires',
-      reservasTotal: 1,
-      ultimaVisita: '2025-10-18',
-    },
-    {
-      id: 3,
-      nombre: 'López, Ana',
-      documento: '34567890',
-      email: 'ana.lopez@email.com',
-      telefono: '+54 9 11 3456-7890',
-      direccion: 'San Martín 456, Rosario',
-      reservasTotal: 5,
-      ultimaVisita: '2025-09-22',
-    },
-    {
-      id: 4,
-      nombre: 'Martínez, Carlos',
-      documento: '45678901',
-      email: 'carlos.martinez@email.com',
-      telefono: '+54 9 11 4567-8901',
-      direccion: 'Belgrano 789, Córdoba',
-      reservasTotal: 2,
-      ultimaVisita: '2025-08-10',
-    },
-  ];
+  const { guests, addGuest, deleteGuest } = useGuests();
+  const [isNewOpen, setIsNewOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    document: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: ''
+  });
 
-  const getInitials = (nombre: string) => {
-    return nombre
-      .split(',')
-      .reverse()
-      .map((n) => n.trim()[0])
-      .join('')
-      .toUpperCase();
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = () => {
+    if (!formData.firstName || !formData.lastName || !formData.document) {
+      alert('Por favor complete los campos obligatorios');
+      return;
+    }
+
+    addGuest({
+      id: Date.now().toString(),
+      ...formData,
+      reservationsCount: 0,
+      lastVisit: null,
+      notes: ''
+    });
+
+    setIsNewOpen(false);
+    setFormData({
+      firstName: '',
+      lastName: '',
+      document: '',
+      email: '',
+      phone: '',
+      address: '',
+      city: '',
+      country: ''
+    });
+  };
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName[0]}${lastName[0]}`.toUpperCase();
   };
 
   return (
@@ -88,7 +85,7 @@ export default function Huespedes() {
             Base de datos de huéspedes registrados
           </p>
         </div>
-        <Dialog>
+        <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
               <Plus className="w-4 h-4 mr-2" />
@@ -105,37 +102,41 @@ export default function Huespedes() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Nombre completo</Label>
-                  <Input placeholder="Apellido, Nombre" />
+                  <Label>Nombre</Label>
+                  <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="Nombre" />
+                </div>
+                <div>
+                  <Label>Apellido</Label>
+                  <Input name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Apellido" />
                 </div>
                 <div>
                   <Label>DNI / Pasaporte</Label>
-                  <Input placeholder="Número de documento" />
+                  <Input name="document" value={formData.document} onChange={handleInputChange} placeholder="Número de documento" />
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <Input type="email" placeholder="correo@ejemplo.com" />
+                  <Input name="email" value={formData.email} onChange={handleInputChange} type="email" placeholder="correo@ejemplo.com" />
                 </div>
                 <div>
                   <Label>Teléfono</Label>
-                  <Input placeholder="+54 9 11 1234-5678" />
+                  <Input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="+54 9 11 1234-5678" />
                 </div>
                 <div className="col-span-2">
                   <Label>Dirección</Label>
-                  <Input placeholder="Dirección completa" />
+                  <Input name="address" value={formData.address} onChange={handleInputChange} placeholder="Dirección completa" />
                 </div>
                 <div>
                   <Label>Ciudad</Label>
-                  <Input placeholder="Ciudad" />
+                  <Input name="city" value={formData.city} onChange={handleInputChange} placeholder="Ciudad" />
                 </div>
                 <div>
                   <Label>País</Label>
-                  <Input placeholder="País" />
+                  <Input name="country" value={formData.country} onChange={handleInputChange} placeholder="País" />
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-4">
-                <Button variant="outline">Cancelar</Button>
-                <Button className="bg-[var(--color-primary)]">Guardar</Button>
+                <Button variant="outline" onClick={() => setIsNewOpen(false)}>Cancelar</Button>
+                <Button className="bg-[var(--color-primary)]" onClick={handleSubmit}>Guardar</Button>
               </div>
             </div>
           </DialogContent>
@@ -171,59 +172,68 @@ export default function Huespedes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {huespedes.map((huesped) => (
-                <TableRow key={huesped.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-[var(--color-primary)] text-white">
-                          {getInitials(huesped.nombre)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>{huesped.nombre}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{huesped.documento}</TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-3 h-3 text-gray-400" />
-                        <span>{huesped.email}</span>
+              {guests
+                .filter(g =>
+                  g.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  g.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  g.document.includes(searchTerm)
+                )
+                .map((huesped) => (
+                  <TableRow key={huesped.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback className="bg-[var(--color-primary)] text-white">
+                            {getInitials(huesped.firstName, huesped.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{huesped.lastName}, {huesped.firstName}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        <span>{huesped.telefono}</span>
+                    </TableCell>
+                    <TableCell>{huesped.document}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="w-3 h-3 text-gray-400" />
+                          <span>{huesped.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-3 h-3 text-gray-400" />
+                          <span>{huesped.phone}</span>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[200px]">
-                    {huesped.direccion}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-secondary)] text-white text-sm">
-                      {huesped.reservasTotal}
-                    </span>
-                  </TableCell>
-                  <TableCell>{huesped.ultimaVisita}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      {huesped.address}, {huesped.city}
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-secondary)] text-white text-sm">
+                        {huesped.reservationsCount}
+                      </span>
+                    </TableCell>
+                    <TableCell>{huesped.lastVisit || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-red-600"
+                          onClick={() => {
+                            if (confirm('¿Eliminar huésped?')) deleteGuest(huesped.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </CardContent>
