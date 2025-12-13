@@ -24,57 +24,12 @@ import {
 import { MetricCard } from '@/components/MetricCard';
 import { Wrench, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
+import { useMaintenance } from '@/contexts/MaintenanceContext';
+
 export default function Mantenimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
-
-  const tickets = [
-    {
-      id: 1,
-      unidad: 'Cabaña 5',
-      problema: 'Fuga de agua en baño',
-      prioridad: 'urgente',
-      estado: 'pendiente',
-      fecha: '2025-10-17',
-      asignado: 'Técnico Mario',
-    },
-    {
-      id: 2,
-      unidad: 'Suite 12',
-      problema: 'Aire acondicionado no enfría',
-      prioridad: 'alta',
-      estado: 'en-proceso',
-      fecha: '2025-10-16',
-      asignado: 'Técnico Juan',
-    },
-    {
-      id: 3,
-      unidad: 'Cabaña 8',
-      problema: 'Puerta de entrada no cierra bien',
-      prioridad: 'media',
-      estado: 'pendiente',
-      fecha: '2025-10-15',
-      asignado: 'Sin asignar',
-    },
-    {
-      id: 4,
-      unidad: 'Suite 7',
-      problema: 'Reemplazo de bombillas',
-      prioridad: 'baja',
-      estado: 'completado',
-      fecha: '2025-10-14',
-      asignado: 'Técnico Pedro',
-    },
-    {
-      id: 5,
-      unidad: 'Cabaña 3',
-      problema: 'Calefacción no funciona',
-      prioridad: 'urgente',
-      estado: 'en-proceso',
-      fecha: '2025-10-17',
-      asignado: 'Técnico Mario',
-    },
-  ];
+  const { tickets } = useMaintenance();
 
   const getPriorityBadge = (prioridad: string) => {
     switch (prioridad) {

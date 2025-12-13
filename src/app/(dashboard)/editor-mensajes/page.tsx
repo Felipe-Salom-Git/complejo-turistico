@@ -8,82 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+import { useMessages } from '@/contexts/MessagesContext';
+
 export default function EditorMensajes() {
-  const [mensajes, setMensajes] = useState({
-    confirmacionReserva: `Hola {nombre},
-
-Tu reserva ha sido confirmada exitosamente.
-
-Detalles de la reserva:
-- Unidad: {unidad}
-- Check-in: {checkin}
-- Check-out: {checkout}
-- Personas: {pax}
-
-Total: ${'{total}'}
-
-¡Esperamos verte pronto!
-
-Complejo Turístico Las Gaviotas & Fontana`,
-
-    recordatorioCheckin: `Hola {nombre},
-
-Te recordamos que tu check-in es mañana {checkin} a las 14:00 hs.
-
-Ubicación: {direccion}
-
-Si tienes alguna consulta, no dudes en contactarnos.
-
-¡Hasta mañana!`,
-
-    bienvenida: `¡Bienvenido/a {nombre}!
-
-Esperamos que disfrutes tu estadía en {unidad}.
-
-Horarios importantes:
-- Check-out: 10:00 AM
-- Desayuno: 8:00 - 10:30 AM
-- Pileta: 9:00 AM - 8:00 PM
-
-Ante cualquier consulta, comunícate con recepción.
-
-¡Que tengas una excelente estadía!`,
-
-    agradecimiento: `Estimado/a {nombre},
-
-Gracias por elegirnos para tu estadía.
-
-Esperamos que hayas disfrutado de tu tiempo en nuestro complejo y esperamos verte nuevamente pronto.
-
-Si tienes algún comentario o sugerencia, nos encantaría escucharte.
-
-¡Hasta la próxima!
-
-Complejo Turístico Las Gaviotas & Fontana`,
-
-    cotizacion: `Estimado/a {nombre},
-
-Adjuntamos la cotización solicitada para tu reserva:
-
-Fechas: {checkin} - {checkout}
-Unidades: {unidades}
-Personas: {pax}
-
-Servicios incluidos:
-{servicios}
-
-Total: ${'{total}'}
-
-Esta cotización tiene validez de {validez} días.
-
-Quedamos a tu disposición para cualquier consulta.
-
-Saludos cordiales,
-Complejo Turístico Las Gaviotas & Fontana`,
-  });
+  const { mensajes, updateMensaje, saveMensajes } = useMessages();
 
   const handleSave = () => {
-    // Save logic here
+    saveMensajes();
     alert('Mensajes guardados exitosamente');
   };
 
@@ -129,10 +60,7 @@ Complejo Turístico Las Gaviotas & Fontana`,
                   className="mt-2 min-h-[300px]"
                   value={mensajes.confirmacionReserva}
                   onChange={(e) =>
-                    setMensajes({
-                      ...mensajes,
-                      confirmacionReserva: e.target.value,
-                    })
+                    updateMensaje("confirmacionReserva", e.target.value)
                   }
                 />
                 <p className="text-xs text-gray-500 mt-2">
@@ -149,10 +77,7 @@ Complejo Turístico Las Gaviotas & Fontana`,
                   className="mt-2 min-h-[300px]"
                   value={mensajes.recordatorioCheckin}
                   onChange={(e) =>
-                    setMensajes({
-                      ...mensajes,
-                      recordatorioCheckin: e.target.value,
-                    })
+                    updateMensaje("recordatorioCheckin", e.target.value)
                   }
                 />
                 <p className="text-xs text-gray-500 mt-2">
@@ -169,7 +94,7 @@ Complejo Turístico Las Gaviotas & Fontana`,
                   className="mt-2 min-h-[300px]"
                   value={mensajes.bienvenida}
                   onChange={(e) =>
-                    setMensajes({ ...mensajes, bienvenida: e.target.value })
+                    updateMensaje("bienvenida", e.target.value)
                   }
                 />
                 <p className="text-xs text-gray-500 mt-2">
@@ -185,10 +110,7 @@ Complejo Turístico Las Gaviotas & Fontana`,
                   className="mt-2 min-h-[300px]"
                   value={mensajes.agradecimiento}
                   onChange={(e) =>
-                    setMensajes({
-                      ...mensajes,
-                      agradecimiento: e.target.value,
-                    })
+                    updateMensaje("agradecimiento", e.target.value)
                   }
                 />
                 <p className="text-xs text-gray-500 mt-2">
@@ -204,7 +126,7 @@ Complejo Turístico Las Gaviotas & Fontana`,
                   className="mt-2 min-h-[300px]"
                   value={mensajes.cotizacion}
                   onChange={(e) =>
-                    setMensajes({ ...mensajes, cotizacion: e.target.value })
+                    updateMensaje("cotizacion", e.target.value)
                   }
                 />
                 <p className="text-xs text-gray-500 mt-2">

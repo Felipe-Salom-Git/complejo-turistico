@@ -34,13 +34,13 @@ export function ResumenFinal({ formData, onPrevious, onSubmit }: ResumenFinalPro
             <div className="flex justify-between">
               <span className="text-slate-500">Check-in:</span>
               <span className="font-medium text-slate-900">
-                {formData.checkIn ? new Date(formData.checkIn).toLocaleDateString() : '-'}
+                {formData.checkIn ? new Date(formData.checkIn).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '-'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Check-out:</span>
               <span className="font-medium text-slate-900">
-                {formData.checkOut ? new Date(formData.checkOut).toLocaleDateString() : '-'}
+                {formData.checkOut ? new Date(formData.checkOut).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '-'}
               </span>
             </div>
             <div className="flex justify-between">

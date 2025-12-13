@@ -15,9 +15,37 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UNITS } from "@/lib/constants";
-import { useReservations, Reservation } from "@/contexts/ReservationsContext";
+import { useReservations, Reservation, UNIT_GROUPS } from "@/contexts/ReservationsContext";
 import { useRouter } from "next/navigation";
+
+// Generate UNITS from UNIT_GROUPS shared with Context
+const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) => 
+  units.map((unitName, index) => {
+    let type = "Estándar";
+    let complex = "Las Gaviotas";
+
+    if (groupName.includes("Tipo A")) type = "Cabaña"; // Mapping approximation
+    else if (groupName.includes("Tipo B")) type = "Cabaña";
+    else if (groupName.includes("Tipo C")) type = "Cabaña";
+    else if (groupName.includes("Fontana")) {
+        complex = "La Fontana";
+        type = "Apartamento";
+    }
+
+    // Preserve the group name as type for detailed view or filter?
+    // The previous implementation used "Cabaña", "Apartamento".
+    // Let's use the group name as the "Detailed Type" but map to broad types for filters if needed.
+    // For now, let's just use the Group Name as Type to be precise as user requested.
+    type = groupName; 
+
+    return {
+      id: unitName, // use name as ID to be safe or unique string
+      name: unitName,
+      type: type,
+      complex: complex
+    };
+  })
+);
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -112,6 +140,16 @@ export default function Calendario() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  // Move Confirmation State
+  const [pendingMove, setPendingMove] = useState<{
+      reservation: Reservation;
+      newUnit: string;
+      newCheckIn: Date;
+      newCheckOut: Date;
+  } | null>(null);
+
+  // ... (existing helper functions)
+
   const handleDrop = (e: React.DragEvent, targetUnit: string, targetDate: Date) => {
     e.preventDefault();
     
@@ -143,15 +181,33 @@ export default function Calendario() {
       return;
     }
 
-    updateReservation({
-      ...draggedReservation,
-      unit: targetUnit,
-      checkIn: newCheckIn,
-      checkOut: newCheckOut
+    // Set Pending Move for Confirmation
+    setPendingMove({
+        reservation: draggedReservation,
+        newUnit: targetUnit,
+        newCheckIn,
+        newCheckOut
     });
 
     setDraggedReservation(null);
   };
+
+  const confirmMove = () => {
+      if (!pendingMove) return;
+
+      updateReservation({
+        ...pendingMove.reservation,
+        unit: pendingMove.newUnit,
+        checkIn: pendingMove.newCheckIn,
+        checkOut: pendingMove.newCheckOut
+      });
+
+      setPendingMove(null);
+  };
+
+  // ... (existing handlers)
+
+
 
   // Split reservation
   const handleSplitReservation = () => {
@@ -198,6 +254,35 @@ export default function Calendario() {
         </Button>
       </div>
 
+      {/* Confirmation Dialog for Move */}
+      <Dialog open={!!pendingMove} onOpenChange={(open) => !open && setPendingMove(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirmar Movimiento</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <p>Estás moviendo la reserva de <strong>{pendingMove?.reservation.guestName}</strong>.</p>
+                <div className="grid grid-cols-2 gap-4 text-sm bg-muted p-3 rounded">
+                    <div>
+                        <span className="block text-gray-500 text-xs">Desde:</span>
+                        <div className="font-medium">{pendingMove?.reservation.unit}</div>
+                        <div>{pendingMove?.reservation.checkIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
+                    </div>
+                    <div>
+                        <span className="block text-blue-600 text-xs font-bold">Hacia:</span>
+                        <div className="font-medium text-blue-700">{pendingMove?.newUnit}</div>
+                        <div className="text-blue-700 font-bold">{pendingMove?.newCheckIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
+                    </div>
+                </div>
+                <p className="text-sm text-gray-500">¿Desea guardar estos cambios?</p>
+            </div>
+            <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPendingMove(null)}>Cancelar</Button>
+                <Button onClick={confirmMove} className="bg-blue-600 hover:bg-blue-700">Confirmar Cambios</Button>
+            </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Split Dialog */}
       <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
         <DialogContent>
@@ -210,7 +295,7 @@ export default function Calendario() {
                 <p className="text-sm"><strong>Huésped:</strong> {selectedReservation.guestName}</p>
                 <p className="text-sm"><strong>Unidad actual:</strong> {selectedReservation.unit}</p>
                 <p className="text-sm">
-                  <strong>Fechas:</strong> {selectedReservation.checkIn.toLocaleDateString()} - {selectedReservation.checkOut.toLocaleDateString()}
+                  <strong>Fechas:</strong> {selectedReservation.checkIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} - {selectedReservation.checkOut.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
                 </p>
               </div>
               <div className="space-y-2">

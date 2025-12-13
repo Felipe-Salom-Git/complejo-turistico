@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
-import { UNITS } from "@/lib/constants";
+import { UNIT_GROUPS } from "@/contexts/ReservationsContext";
 
 interface DatosPrincipalesProps {
   formData: ReservationFormData;
@@ -72,15 +72,19 @@ export function DatosPrincipales({ formData, updateFormData, onNext }: DatosPrin
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-slate-50">Las Gaviotas</div>
-              {UNITS.filter(u => u.complex === "Las Gaviotas").map((unit) => (
-                <SelectItem key={unit.id} value={unit.id}>
-                  {unit.name} - {unit.type}
-                </SelectItem>
+              {Object.entries(UNIT_GROUPS)
+                .filter(([key]) => key.startsWith('Unidad Tipo'))
+                .flatMap(([type, units]) => units.map(u => ({ unit: u, type })))
+                .map(({ unit, type }) => (
+                  <SelectItem key={unit} value={unit}>
+                    {unit} - {type}
+                  </SelectItem>
               ))}
+              
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-slate-50 mt-1">La Fontana</div>
-              {UNITS.filter(u => u.complex === "La Fontana").map((unit) => (
-                <SelectItem key={unit.id} value={unit.id}>
-                  {unit.name} - {unit.type}
+              {UNIT_GROUPS['Fontana']?.map((unit) => (
+                <SelectItem key={unit} value={unit}>
+                   {unit} - Suite/Cabaña
                 </SelectItem>
               ))}
             </SelectContent>

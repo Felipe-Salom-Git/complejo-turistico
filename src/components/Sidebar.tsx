@@ -34,7 +34,7 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
     { id: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: '/nueva-reserva', label: 'Nueva Reserva', icon: PlusCircle },
     { id: 'separator1', type: 'separator', label: 'Base de Datos' },
-    { id: '/huespedes', label: 'Huéspedes', icon: Users },
+    // Removed Huespedes based on new design
     { id: '/reservas', label: 'Reservas', icon: CalendarCheck },
     { id: 'separator2', type: 'separator', label: 'Operaciones' },
     { id: '/stock', label: 'Stock', icon: Package },

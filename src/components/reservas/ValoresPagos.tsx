@@ -92,6 +92,23 @@ export function ValoresPagos({ formData, updateFormData, onNext, onPrevious }: V
                 />
               </div>
             </div>
+
+            <div className="space-y-2">
+               <Label htmlFor="cotizacionDolar" className="text-slate-700">Cotización Dólar</Label>
+               <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                  <Input
+                    id="cotizacionDolar"
+                    type="number"
+                    value={formData.cotizacionDolar || ''}
+                    onChange={(e) => updateFormData({ cotizacionDolar: parseFloat(e.target.value) || 0 })}
+                    className="pl-8 rounded-xl border-slate-300 bg-white"
+                  />
+               </div>
+               <div className="text-[10px] text-blue-600 mt-1 flex items-center gap-1">
+                  <span className="font-bold">BNA:</span> Obtenido automáticamente
+               </div>
+            </div>
           </div>
         </div>
 

@@ -12,7 +12,7 @@ import { DatosPrincipales } from "@/components/reservas/DatosPrincipales";
 import { FechasHuesped } from "@/components/reservas/FechasHuesped";
 import { ValoresPagos } from "@/components/reservas/ValoresPagos";
 import { ResumenFinal } from "@/components/reservas/ResumenFinal";
-import { UNITS } from "@/lib/constants";
+import { useEffect } from "react";
 
 export default function NuevaReservaPage() {
   const router = useRouter();
@@ -43,7 +43,20 @@ export default function NuevaReservaPage() {
     moneda: "USD",
     cuentaDestino: "",
     montoPagado: "0",
+    cotizacionDolar: 0
   });
+
+  // Fetch Dolar
+  useEffect(() => {
+    fetch('https://dolarapi.com/v1/dolares/oficial')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.venta) {
+            setFormData(prev => ({ ...prev, cotizacionDolar: data.venta }));
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
 
   const updateFormData = (updates: Partial<ReservationFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -64,8 +77,12 @@ export default function NuevaReservaPage() {
       return;
     }
 
-    const checkInDate = new Date(formData.checkIn);
-    const checkOutDate = new Date(formData.checkOut);
+    // Fix: Parse manually to avoid timezone issues with new Date(string)
+    const [checkInYear, checkInMonth, checkInDay] = formData.checkIn.split('-').map(Number);
+    const [checkOutYear, checkOutMonth, checkOutDay] = formData.checkOut.split('-').map(Number);
+
+    const checkInDate = new Date(checkInYear, checkInMonth - 1, checkInDay);
+    const checkOutDate = new Date(checkOutYear, checkOutMonth - 1, checkOutDay);
     
     // Normalizar horas
     checkInDate.setHours(12, 0, 0, 0);
@@ -78,15 +95,17 @@ export default function NuevaReservaPage() {
 
     // Verificar conflictos
     const hasConflict = reservations.some(res => {
-      // Ignorar conflictos con la misma reserva (si fuera edición, pero esto es creación nueva)
-      if (res.unit !== UNITS.find(u => u.id === formData.tipoUnidad)?.name && res.unit !== formData.tipoUnidad) return false;
-      
-      const resStart = new Date(res.checkIn);
-      const resEnd = new Date(res.checkOut);
-      resStart.setHours(12, 0, 0, 0);
-      resEnd.setHours(12, 0, 0, 0);
-      
-      return (checkInDate < resEnd && checkOutDate > resStart);
+      // Ignorar conflictos con la misma reserva (si fuera edición)
+      // TipoUnidad ahora guarda el Nombre Real (ej: LG-1), no el ID
+      if (res.unit === formData.tipoUnidad) {
+          const resStart = new Date(res.checkIn);
+          const resEnd = new Date(res.checkOut);
+          resStart.setHours(12, 0, 0, 0);
+          resEnd.setHours(12, 0, 0, 0);
+          
+          return (checkInDate < resEnd && checkOutDate > resStart);
+      }
+      return false;
     });
 
     if (hasConflict) {
@@ -94,14 +113,21 @@ export default function NuevaReservaPage() {
       return;
     }
 
-    // Buscar nombre real de la unidad desde el ID
-    const unitObj = UNITS.find(u => u.id === formData.tipoUnidad);
-    const unitName = unitObj ? unitObj.name : formData.tipoUnidad; // Fallback al ID si no encuentra nombre
-
     // Crear objeto reserva compatible con el contexto
+    const totalUSD = parseFloat(formData.valorNocheUSD) * Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) || 0;
+    const paidAmount = parseFloat(formData.montoPagado) || 0;
+    
+    // Calculate paid in USD if currency is ARS
+    let paidAmountUSD = 0;
+    if (formData.moneda === 'USD') {
+        paidAmountUSD = paidAmount;
+    } else if (formData.moneda === 'ARS' && formData.cotizacionDolar) {
+        paidAmountUSD = paidAmount / formData.cotizacionDolar;
+    }
+
     const newReservation = {
       id: `res-${Date.now()}`,
-      unit: unitName,
+      unit: formData.tipoUnidad, // Now directly the name
       guestName: formData.nombreHuesped,
       checkIn: checkInDate,
       checkOut: checkOutDate,
@@ -110,7 +136,18 @@ export default function NuevaReservaPage() {
       email: formData.email,
       pax: parseInt(formData.cantidadPax) || 2,
       observations: formData.observaciones,
-      total: parseFloat(formData.montoPagado) || 0, // Usamos monto pagado como referencia de total por ahora
+      total: totalUSD * (formData.cotizacionDolar || 1), // Legacy ARS rough estimate if needed, or just 0
+      totalUSD: totalUSD,
+      amountPaid: paidAmount, // Nominal sum
+      amountPaidUSD: paidAmountUSD,
+      payments: paidAmount > 0 ? [{
+          id: Date.now().toString(),
+          date: new Date(),
+          amount: paidAmount,
+          currency: formData.moneda as 'ARS'|'USD',
+          method: formData.formaPago as any,
+          exchangeRate: formData.moneda === 'ARS' ? formData.cotizacionDolar : undefined
+      }] : []
     };
 
     addReservation(newReservation);

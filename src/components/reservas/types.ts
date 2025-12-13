@@ -22,6 +22,7 @@ export interface ReservationFormData {
     // Valores y pagos
     valorNocheUSD: string;
     valorNocheARS: string;
+    cotizacionDolar: number;
     conceptoPago: string;
     formaPago: string;
     moneda: string;
