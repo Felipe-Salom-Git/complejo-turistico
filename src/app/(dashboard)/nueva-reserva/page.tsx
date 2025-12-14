@@ -31,12 +31,10 @@ export default function NuevaReservaPage() {
   const { guests, addGuest } = useGuests();
 
   // Form State
-  const [guestId, setGuestId] = useState<string>("");
   const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [viewNewGuest, setViewNewGuest] = useState(false); // Toggle manual entry if not found
-
+  
   const [checkIn, setCheckIn] = useState<Date | undefined>(new Date());
   const [checkOut, setCheckOut] = useState<Date | undefined>(undefined);
 
@@ -48,20 +46,15 @@ export default function NuevaReservaPage() {
   const [hasPet, setHasPet] = useState(false);
   const [petCharged, setPetCharged] = useState(false);
 
-  const [pricePerNightUSD, setPricePerNightUSD] = useState(0);
-  const [totalPriceUSD, setTotalPriceUSD] = useState<string>(""); // User entered total
-  const [useManualTotal, setUseManualTotal] = useState(false);
+  const [manualBasePrice, setManualBasePrice] = useState<string>(""); 
+  // Removed explicit pricePerNightUSD state as detailed breakdown logic is now simpler (manual base + pet fee)
 
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");
   const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'ARS'>("USD");
   const [exchangeRate, setExchangeRate] = useState(0);
 
-  // Search State
-  const [guestSearch, setGuestSearch] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // Load Dollar Rate
+  // Fetch BNA rate on mount
   useEffect(() => {
     fetch('https://dolarapi.com/v1/dolares/oficial')
       .then(res => res.json())
@@ -70,56 +63,38 @@ export default function NuevaReservaPage() {
           setExchangeRate(data.venta);
         }
       })
-      .catch(() => setExchangeRate(1200)); // Fallback
+      .catch(err => console.error("Error fetching BNA rate:", err));
   }, []);
 
-  // Filter Guests
-  const filteredGuests = guests.filter(g =>
-    g.lastName.toLowerCase().includes(guestSearch.toLowerCase()) ||
-    g.firstName.toLowerCase().includes(guestSearch.toLowerCase()) ||
-    g.document.includes(guestSearch)
-  );
+  // Guest search state removed as requested
+  // Keeping clean state for render
 
-  const handleSelectGuest = (guest: Guest) => {
-    setGuestId(guest.id);
-    setGuestName(`${guest.lastName}, ${guest.firstName}`);
-    setEmail(guest.email);
-    setPhone(guest.phone);
-    setGuestSearch(`${guest.lastName}, ${guest.firstName}`);
-    setIsSearchOpen(false);
-    setViewNewGuest(false);
-  };
-
-  const handleCreateGuest = () => {
-    // Simple inline creation handled by main submit if no ID
-    // Or clear selection to allow manual typing
-    setGuestId("");
-    setGuestName(guestSearch); // Use search term as name start
-    setIsSearchOpen(false);
-    setViewNewGuest(true);
-  };
 
   // Calculations
   const nights = checkIn && checkOut
     ? Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  const petFeePerNight = (hasPet && !petCharged) ? 10 : 0;
-
-  // If manual total is used, use it. Otherwise calc: (BaseRate + PetFee) * Nights
-  const calculatedTotalUSD = (pricePerNightUSD + petFeePerNight) * nights;
-  const finalTotalUSD = useManualTotal ? parseFloat(totalPriceUSD || "0") : calculatedTotalUSD;
-
-  // Per requirement: Price per night = total USD / nights
-  // We use this for display or consistency.
-  // If Manual, effective rate might differ from entered Base Rate.
-  const effectiveDailyRate = nights > 0 ? (finalTotalUSD / nights) : 0;
+  // Manual Base + Pet Fee
+  const petFeeTotal = (hasPet && petCharged) ? (nights * 10) : 0;
+  const baseValue = parseFloat(manualBasePrice || "0");
+  const finalTotalUSD = baseValue + petFeeTotal;
+  
+  // Effective daily rate for info
+  const effectiveDailyRate = nights > 0 ? (baseValue / nights) : 0;
 
   const totalPaidUSD = paymentCurrency === 'USD'
     ? parseFloat(paymentAmount || "0")
     : (parseFloat(paymentAmount || "0") / (exchangeRate || 1));
 
   const balanceUSD = finalTotalUSD - totalPaidUSD;
+
+  // Auto-update payment for Prepaga policy
+  useEffect(() => {
+    if (cancellationPolicy === 'Prepaga') {
+      setPaymentAmount(finalTotalUSD.toString());
+    }
+  }, [cancellationPolicy, finalTotalUSD]);
 
   // Submit Handler
   const handleSubmit = () => {
@@ -136,28 +111,26 @@ export default function NuevaReservaPage() {
     const finalUnit = findAvailableUnit(selectedUnit, checkIn, checkOut);
 
     if (!finalUnit) {
-      alert("⚠️ No hay disponibilidad para la unidad o categoría seleccionada en estas fechas.");
+      alert("⚠️ No hay disponibilidad para el tipo de unidad seleccionado en estas fechas.");
       return;
     }
 
-    // Create Guest if dynamic
-    if (!guestId && viewNewGuest) {
-      const newId = Date.now().toString();
-      addGuest({
-        id: newId,
-        firstName: guestName.split(',')[1]?.trim() || guestName.split(' ')[0] || guestName,
-        lastName: guestName.split(',')[0]?.trim() || "",
-        document: "",
-        email: email,
-        phone: phone,
-        address: "",
-        city: "",
-        country: "",
-        reservationsCount: 1,
-        lastVisit: new Date().toISOString().split('T')[0],
-        notes: "Creado desde Nueva Reserva"
-      });
-    }
+    // Always create new guest for this flow as requested (no search)
+    const newGuestId = `G-${Date.now()}`;
+    addGuest({
+      id: newGuestId,
+      firstName: guestName.split(',')[1]?.trim() || guestName.split(' ')[0] || guestName,
+      lastName: guestName.split(',')[0]?.trim() || "",
+      document: "",
+      email: email,
+      phone: phone,
+      address: "",
+      city: "",
+      country: "",
+      reservationsCount: 1,
+      lastVisit: new Date().toISOString().split('T')[0],
+      notes: "Creado desde Nueva Reserva Simple"
+    });
 
     const newReservation: Reservation = {
       id: `RES-${Date.now()}`,
@@ -178,6 +151,7 @@ export default function NuevaReservaPage() {
         amount: parseFloat(paymentAmount),
         currency: paymentCurrency,
         method: paymentMethod as any,
+        invoiceNumber: undefined,
         exchangeRate: paymentCurrency === 'ARS' ? exchangeRate : undefined,
       }] : [],
       observations: "Reserva creada desde el nuevo panel.",
@@ -224,57 +198,34 @@ export default function NuevaReservaPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative">
-                <Label>Buscar o Ingresar Huésped</Label>
-                <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <div className="relative mt-1">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar por nombre o DNI..."
-                        value={guestSearch}
-                        onChange={(e) => {
-                          setGuestSearch(e.target.value);
-                          setIsSearchOpen(true);
-                          if (!e.target.value) setGuestId("");
-                        }}
-                        className="pl-9"
-                      />
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-0 w-[400px] max-h-[300px] overflow-y-auto" align="start">
-                    <div className="p-2 space-y-1">
-                      {filteredGuests.length > 0 ? filteredGuests.map(g => (
-                        <button
-                          key={g.id}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 rounded flex justify-between items-center"
-                          onClick={() => handleSelectGuest(g)}
-                        >
-                          <span>{g.lastName}, {g.firstName}</span>
-                          <Badge variant="secondary" className="text-[10px]">{g.document}</Badge>
-                        </button>
-                      )) : <div className="text-sm text-center py-4 text-muted-foreground">No se encontraron resultados.</div>}
-                      <Separator />
-                      <Button variant="ghost" className="w-full justify-start text-emerald-600" onClick={handleCreateGuest}>
-                        + Crear nuevo: "{guestSearch}"
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Label className="text-base font-semibold text-emerald-800">Datos Personales</Label>
+                <p className="text-xs text-muted-foreground mb-4">Complete los datos del huésped titular.</p>
               </div>
 
-              {(guestId || viewNewGuest) && (
-                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Nombre Completo</Label>
-                    <Input value={guestName} onChange={e => setGuestName(e.target.value)} readOnly={!!guestId} className={guestId ? "bg-slate-100" : ""} />
+                    <Input 
+                      placeholder="Nombre y Apellido"
+                      value={guestName} 
+                      onChange={e => setGuestName(e.target.value)} 
+                    />
                   </div>
                   <div>
                     <Label>Email</Label>
-                    <Input value={email} onChange={e => setEmail(e.target.value)} readOnly={!!guestId} className={guestId ? "bg-slate-100" : ""} />
+                    <Input 
+                      placeholder="estela@ejemplo.com"
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)} 
+                    />
                   </div>
                   <div>
                     <Label>Teléfono</Label>
-                    <Input value={phone} onChange={e => setPhone(e.target.value)} readOnly={!!guestId} className={guestId ? "bg-slate-100" : ""} />
+                    <Input 
+                      placeholder="+54 9 ..."
+                      value={phone} 
+                      onChange={e => setPhone(e.target.value)} 
+                    />
                   </div>
                   <div>
                     <Label>Pasajeros (Pax)</Label>
@@ -284,8 +235,9 @@ export default function NuevaReservaPage() {
                     <Label>Patente Vehículo</Label>
                     <Input value={licensePlate} onChange={e => setLicensePlate(e.target.value)} placeholder="AAA 123" />
                   </div>
-                </div>
-              )}
+              </div>
+
+
             </CardContent>
           </Card>
 
@@ -318,23 +270,16 @@ export default function NuevaReservaPage() {
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Seleccionar Unidad</Label>
+                  <Label>Seleccionar Tipo de Unidad</Label>
                   <Select value={selectedUnit} onValueChange={setSelectedUnit}>
                     <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Seleccione una unidad..." />
+                      <SelectValue placeholder="Seleccione un tipo..." />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      {Object.entries(UNIT_GROUPS).map(([group, units]) => (
-                        <div key={group}>
-                          <SelectItem value={group} className="font-bold bg-slate-100 dark:bg-slate-800 focus:bg-slate-200">
-                            ★ Asignar automático: {group}
-                          </SelectItem>
-                          {units.map(unit => (
-                            <SelectItem key={unit} value={unit} className="pl-6 cursor-pointer text-sm">
-                              {unit}
-                            </SelectItem>
-                          ))}
-                        </div>
+                      {Object.keys(UNIT_GROUPS).map((group) => (
+                        <SelectItem key={group} value={group}>
+                           {group}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -358,37 +303,6 @@ export default function NuevaReservaPage() {
             </CardContent>
           </Card>
 
-          {/* 3. Extras & Policies */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Check className="w-5 h-5 text-emerald-600" /> Extras y Políticas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-8">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="hasPet" checked={hasPet} onCheckedChange={(c: boolean) => setHasPet(c)} />
-                  <Label htmlFor="hasPet">Tiene Mascota</Label>
-                </div>
-                {hasPet && (
-                  <div className="flex items-center space-x-2 animate-in fade-in">
-                    <Checkbox id="petCharged" checked={petCharged} onCheckedChange={(c: boolean) => setPetCharged(c)} />
-                    <Label htmlFor="petCharged">Mascota Cobrada</Label>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Política de Cancelación</Label>
-                <Input
-                  value={cancellationPolicy}
-                  onChange={e => setCancellationPolicy(e.target.value)}
-                  placeholder="Ej: Flexible, No Reembolsable..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {/* 3. Financials */}
           <Card>
             <CardHeader>
@@ -398,53 +312,62 @@ export default function NuevaReservaPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+                <div className="col-span-2 space-y-3">
                   <div className="flex items-center justify-between mb-1">
-                    <Label>Total Reserva (USD)</Label>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="manualTotal" checked={useManualTotal} onCheckedChange={(c: boolean) => setUseManualTotal(c)} />
-                      <Label htmlFor="manualTotal" className="text-xs text-muted-foreground">Manual</Label>
-                    </div>
+                    <Label className="font-bold">Valor Estadía (Base USD)</Label>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Manual</span>
                   </div>
 
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-gray-400">$</span>
                     <Input
                       type="number"
-                      className={cn("pl-7 font-bold text-lg", useManualTotal ? "border-emerald-500" : "")}
+                      className="pl-7 font-bold text-lg border-emerald-500 bg-emerald-50/10"
                       placeholder="0.00"
-                      value={useManualTotal ? totalPriceUSD : calculatedTotalUSD}
-                      onChange={e => {
-                        if (useManualTotal) setTotalPriceUSD(e.target.value);
-                      }}
-                      readOnly={!useManualTotal}
+                      value={manualBasePrice}
+                      onChange={e => setManualBasePrice(e.target.value)}
                     />
                   </div>
-                  {!useManualTotal && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-20">Base x Noche:</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          className="h-8 w-24 text-sm"
-                          placeholder="0.00"
-                          value={pricePerNightUSD || ''}
-                          onChange={e => setPricePerNightUSD(parseFloat(e.target.value) || 0)}
-                        />
-                        {petFeePerNight > 0 && (
-                          <div className="text-[10px] text-emerald-600 font-medium absolute top-8 left-0 whitespace-nowrap">
-                            + USD {petFeePerNight} (Mascota)
-                          </div>
-                        )}
-                      </div>
+                  
+                  {hasPet && (
+                    <div className="bg-orange-50 border border-orange-100 p-3 rounded-lg flex justify-between items-center text-sm">
+                       <span className="text-orange-800 flex items-center gap-2">
+                         🐾 Recargo Mascota ({nights} noches)
+                       </span>
+                       <span className="font-bold text-orange-700">
+                         {petCharged ? `+ USD ${petFeeTotal}` : 'Bonificado'}
+                       </span>
                     </div>
                   )}
-                  {useManualTotal && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-20">Promedio/Noche:</Label>
-                      <span className="text-sm font-medium">USD {effectiveDailyRate.toFixed(2)}</span>
-                    </div>
-                  )}
+
+                  <div className="mt-2 flex items-center justify-between bg-slate-100 p-2 rounded">
+                      <Label className="text-xs text-muted-foreground">Total Final:</Label>
+                      <span className="text-lg font-bold text-slate-800">USD {finalTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <div className="space-y-1 pt-2">
+                    <Label className="text-xs">Política de Cancelación</Label>
+                    <Select 
+                      value={cancellationPolicy} 
+                      onValueChange={(v) => {
+                        setCancellationPolicy(v);
+                        if (v === 'Prepaga') {
+                          setPaymentAmount(finalTotalUSD.toString());
+                          setPaymentCurrency('USD'); // Default to USD for full prepay
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Seleccionar política..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Non Ref">Non Ref</SelectItem>
+                        <SelectItem value="100% 21 Dias">100% 21 Días</SelectItem>
+                        <SelectItem value="100% 14 Dias">100% 14 Días</SelectItem>
+                        <SelectItem value="50% 14 Dias">50% 14 Días</SelectItem>
+                        <SelectItem value="100% 2 Dias">100% 2 Días</SelectItem>
+                        <SelectItem value="Prepaga">Prepaga</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label>Cotización Dólar (BNA Venta)</Label>
@@ -500,6 +423,37 @@ export default function NuevaReservaPage() {
             </CardContent>
           </Card>
 
+          {/* 4. Extras & Policies (Moved to Bottom) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Check className="w-5 h-5 text-emerald-600" /> Extras y Políticas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="hasPet" 
+                    checked={hasPet} 
+                    onCheckedChange={(c: boolean) => {
+                      setHasPet(c);
+                      if (c) setPetCharged(true); // Default to charged when selected
+                    }} 
+                  />
+                  <Label htmlFor="hasPet">Tiene Mascota</Label>
+                </div>
+                {hasPet && (
+                  <div className="flex items-center space-x-2 animate-in fade-in">
+                    <Checkbox id="petCharged" checked={petCharged} onCheckedChange={(c: boolean) => setPetCharged(c)} />
+                    <Label htmlFor="petCharged">Mascota Cobrada (+USD 10/noche)</Label>
+                  </div>
+                )}
+              </div>
+
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* Right Column: Sticky Summary */}
@@ -540,7 +494,7 @@ export default function NuevaReservaPage() {
                     <div className="flex justify-between items-end">
                       <div className="text-sm opacity-80">Total USD</div>
                       <div className="text-2xl font-bold tracking-tight">
-                        USD {finalTotalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        USD {finalTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-xs text-emerald-300">

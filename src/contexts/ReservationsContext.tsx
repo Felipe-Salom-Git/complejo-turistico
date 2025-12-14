@@ -54,6 +54,7 @@ interface ReservationsContextType {
   finishCleaning: (id: string) => void;
   findAvailableUnit: (requestedType: string, checkIn: Date, checkOut: Date) => string | null;
   deleteReservation: (id: string) => void;
+  clearAllReservations: () => void;
 }
 
 const ReservationsContext = createContext<ReservationsContextType | undefined>(undefined);
@@ -73,6 +74,9 @@ export const INVENTORY = Object.values(UNIT_GROUPS).flat();
 export function ReservationsProvider({ children }: { children: React.ReactNode }) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   // ...
+
+  // Initialize with localStorage or mock data
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Initialize with localStorage or mock data
   useEffect(() => {
@@ -124,14 +128,15 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
       ];
       setReservations(initialReservations);
     }
+    setIsLoaded(true);
   }, []);
 
   // Save to localStorage whenever reservations change
   useEffect(() => {
-    if (reservations.length > 0) {
+    if (isLoaded) {
       localStorage.setItem('reservations', JSON.stringify(reservations));
     }
-  }, [reservations]);
+  }, [reservations, isLoaded]);
 
   const addReservation = (reservation: Reservation) => {
     setReservations(prev => {
@@ -269,8 +274,12 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
     setReservations(prev => prev.filter(r => r.id !== id));
   };
 
+  const clearAllReservations = () => {
+    setReservations([]);
+  };
+
   return (
-    <ReservationsContext.Provider value={{ reservations, addReservation, updateReservation, deleteReservation, splitReservation, checkIn, checkOut, finishCleaning, findAvailableUnit }}>
+    <ReservationsContext.Provider value={{ reservations, addReservation, updateReservation, deleteReservation, splitReservation, checkIn, checkOut, finishCleaning, findAvailableUnit, clearAllReservations }}>
       {children}
     </ReservationsContext.Provider>
   );

@@ -13,10 +13,12 @@ export function CheckOutWidget() {
   
   // Mock today as end of range for consistency with context mock
   const today = new Date();
+  const todayStr = today.toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
   
-  const checkOuts = reservations.filter(r => 
-    new Date(r.checkOut).toDateString() === today.toDateString()
-  );
+  const checkOuts = reservations.filter(r => {
+    const d = new Date(r.checkOut);
+    return d.toISOString().split('T')[0] === todayStr;
+  });
 
   return (
     <Card>

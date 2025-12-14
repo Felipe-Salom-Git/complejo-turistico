@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReservations, Reservation } from '@/contexts/ReservationsContext';
 import { Badge } from '@/components/ui/badge';
@@ -16,26 +16,79 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function CheckInWidget() {
   const { reservations, updateReservation, checkIn } = useReservations();
   const [selectedRes, setSelectedRes] = useState<Reservation | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [exchangeRate, setExchangeRate] = useState(0);
+  const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'ARS'>('USD');
+  const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+
+  useEffect(() => {
+    fetch('https://dolarapi.com/v1/dolares/oficial')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.venta) {
+          setExchangeRate(data.venta);
+        }
+      })
+      .catch(err => console.error("Error fetching BNA rate:", err));
+  }, []);
 
   const today = new Date();
-  
-  const checkIns = reservations.filter(r => 
-    new Date(r.checkIn).toDateString() === today.toDateString()
-  );
+  const todayStr = today.toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  // This constructs YYYY-MM-DD in local time (AR).
+
+  const checkIns = reservations.filter(r => {
+    // Reservation dates are typically stored as UTC midnight from the form input.
+    // So we use toISOString() to get the YYYY-MM-DD part.
+    // HOWEVER, if they were created differently, we must be careful.
+    // Let's safe-guard:
+    const d = new Date(r.checkIn);
+    return d.toISOString().split('T')[0] === todayStr;
+    // Note: If todayStr is "2025-12-13" (local), and d is 2025-12-13T00:00Z, the split gives "2025-12-13". Match!
+  });
 
   const handlePayment = () => {
     if (!selectedRes || !paymentAmount) return;
     const amount = parseFloat(paymentAmount);
-    if (isNaN(amount)) return;
+    if (isNaN(amount) || amount <= 0) return;
+
+    // Calculate USD amount for balance tracking
+    let amountUSD = amount;
+    if (paymentCurrency === 'ARS' && exchangeRate > 0) {
+      amountUSD = amount / exchangeRate;
+    }
+
+    // Create Payment Object
+    const newPayment = {
+      id: Date.now().toString(),
+      date: new Date(),
+      amount: amount,
+      currency: paymentCurrency,
+      method: paymentMethod as any,
+      exchangeRate: paymentCurrency === 'ARS' ? exchangeRate : undefined,
+    };
 
     const updated = {
       ...selectedRes,
-      amountPaid: (selectedRes.amountPaid || 0) + amount
+      // Update legacy field (cache)
+      amountPaid: (selectedRes.amountPaid || 0) + amount,
+      // Update Master USD Paid
+      amountPaidUSD: (selectedRes.amountPaidUSD || 0) + amountUSD,
+      // Append to payments history
+      payments: [...(selectedRes.payments || []), newPayment],
+      // Update balance cache
+      balance_usd: (selectedRes.totalUSD || 0) - ((selectedRes.amountPaidUSD || 0) + amountUSD),
+      balance_ars: ((selectedRes.totalUSD || 0) - ((selectedRes.amountPaidUSD || 0) + amountUSD)) * exchangeRate
     };
     
     updateReservation(updated);
@@ -44,7 +97,10 @@ export function CheckInWidget() {
   };
 
   const getBalance = (res: Reservation) => {
-    return (res.total || 0) - (res.amountPaid || 0);
+    // Prefer USD fields, fallback to legacy
+    const total = res.totalUSD ?? res.total ?? 0;
+    const paid = res.amountPaidUSD ?? res.amountPaid ?? 0;
+    return total - paid;
   };
 
   return (
@@ -81,7 +137,14 @@ export function CheckInWidget() {
                         <span className="flex items-center gap-1">
                           <DollarSign className="w-3 h-3" /> 
                           {balance > 0 ? (
-                            <span className="text-red-500 font-medium">Deb: ${balance}</span>
+                            <div className="flex flex-col items-end">
+                                <span className="text-red-500 font-medium">Deb: USD {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                {exchangeRate > 0 && (
+                                    <span className="text-[10px] text-gray-500">
+                                        (~ARS ${(balance * exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                    </span>
+                                )}
+                            </div>
                           ) : (
                             <span className="text-green-500">Pagado</span>
                           )}
@@ -90,7 +153,7 @@ export function CheckInWidget() {
                     </div>
                     <div className="text-right">
                        <span className="text-xs text-gray-400 block">Pagado</span>
-                       <span className="text-sm font-medium text-green-600">${res.amountPaid || 0}</span>
+                       <span className="text-sm font-medium text-green-600">USD {(res.amountPaidUSD ?? res.amountPaid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 );
@@ -153,15 +216,30 @@ export function CheckInWidget() {
                 <div className="grid grid-cols-3 gap-2 text-center text-sm">
                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
                       <span className="block text-gray-500 text-xs">Total</span>
-                      <span className="font-bold">${selectedRes.total || 0}</span>
+                      <span className="font-bold block">USD {(selectedRes.totalUSD ?? selectedRes.total ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {exchangeRate > 0 && (
+                          <span className="text-[10px] text-gray-500 block">
+                              ARS ${((selectedRes.totalUSD ?? selectedRes.total ?? 0) * exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                      )}
                    </div>
                    <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
                       <span className="block text-gray-500 text-xs">Pagado</span>
-                      <span className="font-bold text-green-600">${selectedRes.amountPaid || 0}</span>
+                      <span className="font-bold block text-green-600">USD {(selectedRes.amountPaidUSD ?? selectedRes.amountPaid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {exchangeRate > 0 && (
+                          <span className="text-[10px] text-gray-500 block">
+                              ARS ${((selectedRes.amountPaidUSD ?? selectedRes.amountPaid ?? 0) * exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                      )}
                    </div>
                    <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded">
                       <span className="block text-gray-500 text-xs">Saldo</span>
-                      <span className="font-bold text-red-600">${getBalance(selectedRes)}</span>
+                      <span className="font-bold block text-red-600">USD {getBalance(selectedRes).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {exchangeRate > 0 && (
+                          <span className="text-[10px] text-gray-500 block">
+                              ARS ${(getBalance(selectedRes) * exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                      )}
                    </div>
                 </div>
               </div>
@@ -170,8 +248,8 @@ export function CheckInWidget() {
 
               <div className="space-y-3">
                  <Label>Agregar Pago</Label>
-                 <div className="flex gap-2">
-                    <div className="relative flex-1">
+                 <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
                       <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                       <Input 
                         type="number" 
@@ -181,7 +259,24 @@ export function CheckInWidget() {
                         onChange={(e) => setPaymentAmount(e.target.value)}
                       />
                     </div>
-                    <Button onClick={handlePayment} className="bg-green-600 hover:bg-green-700">
+                    <Select value={paymentCurrency} onValueChange={(v: any) => setPaymentCurrency(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="ARS">ARS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                        <SelectItem value="Transferencia">Transferencia</SelectItem>
+                        <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handlePayment} className="bg-green-600 hover:bg-green-700 w-full">
                        Registrar
                     </Button>
                  </div>

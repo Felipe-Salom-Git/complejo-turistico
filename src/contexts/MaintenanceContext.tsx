@@ -67,6 +67,15 @@ export function MaintenanceProvider({ children }: { children: React.ReactNode })
       fecha: '2025-10-17',
       asignado: 'Técnico Mario',
     },
+    {
+      id: 6,
+      unidad: 'Quincho',
+      problema: 'Revisión Tablero Eléctrico',
+      prioridad: 'alta',
+      estado: 'pendiente',
+      fecha: '2025-10-18',
+      asignado: 'Julián Electricista',
+    },
   ]);
 
   const addTicket = (ticket: Ticket) => {

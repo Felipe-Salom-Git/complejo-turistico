@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Eye, Edit, Trash2, Check, Users, FileText, Send, X } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Edit, Trash2, Check, Users, FileText, Send, X, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +45,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 export default function Reservas() {
   const router = useRouter();
-  const { reservations, updateReservation, deleteReservation } = useReservations();
+  const { reservations, updateReservation, deleteReservation, clearAllReservations } = useReservations();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -105,6 +105,17 @@ export default function Reservas() {
             onClick={() => setIsClientDbOpen(true)}
           >
             <Users className="h-4 w-4" /> Base de Clientes
+          </Button>
+          <Button
+            variant="destructive"
+            className="gap-2 bg-red-100 text-red-700 hover:bg-red-200 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
+            onClick={() => {
+              if (confirm('⚠️ ¿Estás SEGURO de eliminar TODAS las reservas? Esto borrará el calendario y la ocupación por completo. No se puede deshacer.')) {
+                clearAllReservations();
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Vaciar Todo
           </Button>
           <Button
             className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
@@ -220,12 +231,12 @@ export default function Reservas() {
 
       {/* Reservation Details Sheet */}
       <Sheet open={!!selectedRes} onOpenChange={(open) => !open && setSelectedRes(null)}>
-        <SheetContent className="sm:max-w-2xl overflow-y-auto">
+        <SheetContent className="min-w-[50vw] sm:max-w-[50vw] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Detalles de Reserva</SheetTitle>
             {selectedRes && (
               <SheetDescription>
-                ID: {selectedRes.id} | Creada el {new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+                ID: {selectedRes.id} • Por <span className="font-semibold text-emerald-600">{selectedRes.createdBy || 'Sistema'}</span> • {new Date(selectedRes.createdAt || new Date()).toLocaleDateString('es-AR')}
               </SheetDescription>
             )}
           </SheetHeader>
@@ -303,19 +314,16 @@ function ReservationDetailsView({ reservation, onUpdate, onDelete }: { reservati
 
     const updatedPayments = [...(reservation.payments || []), newPayment];
 
-    // Recalculate global amounts
-    // amountPaid (legacy mix) could still be sum of raw numbers, 
-    // OR we can just focus on amountPaidUSD
     const newTotalPaidUSD = updatedPayments.reduce((acc, p) => {
       if (p.currency === 'USD') return acc + p.amount;
       if (p.currency === 'ARS' && p.exchangeRate) return acc + (p.amount / p.exchangeRate);
-      return acc; // Fallback if no rate? Should ideally not happen or assume 0
+      return acc; 
     }, 0);
 
     onUpdate({
       ...reservation,
       payments: updatedPayments,
-      amountPaid: updatedPayments.reduce((acc, p) => acc + p.amount, 0), // Keeping "nominal" sum if needed, but less useful now
+      amountPaid: updatedPayments.reduce((acc, p) => acc + p.amount, 0), 
       amountPaidUSD: newTotalPaidUSD
     });
 
@@ -333,7 +341,6 @@ function ReservationDetailsView({ reservation, onUpdate, onDelete }: { reservati
     return total - paid;
   };
 
-  // Helper to compute paid USD on the fly if not stored
   const getComputedPaidUSD = (res: Reservation) => {
     if (!res.payments) return 0;
     return res.payments.reduce((acc, p) => {
@@ -343,402 +350,221 @@ function ReservationDetailsView({ reservation, onUpdate, onDelete }: { reservati
     }, 0);
   };
 
+  const nights = Math.ceil((new Date(reservation.checkOut).getTime() - new Date(reservation.checkIn).getTime()) / (1000 * 60 * 60 * 24));
+  const petFee = (reservation.hasPet && reservation.petCharged) ? (nights * 10) : 0;
+  const baseStay = (reservation.totalUSD || 0) - petFee;
+
   return (
-    <div className="space-y-8 py-6 px-2">
-      {/* Header info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-3">
-          <Label className="text-muted-foreground text-xs uppercase tracking-wide font-bold">Información del Huésped</Label>
-          <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-xl space-y-3 shadow-sm border border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
-                {reservation.guestName.charAt(0)}
-              </div>
-              <div>
-                <p className="font-bold text-lg">{reservation.guestName}</p>
-                <p className="text-xs text-muted-foreground">ID: {reservation.id}</p>
-              </div>
+    <div className="grid grid-cols-12 gap-6 py-4 px-2 h-full content-start">
+      
+      {/* LEFT COLUMN: Info & Actions (Span 5) */}
+      <div className="col-span-12 md:col-span-5 space-y-4">
+        
+        {/* Guest Compact */}
+        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">
+              {reservation.guestName.charAt(0)}
             </div>
-            <Separator />
-            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
-              <p className="flex items-center gap-3">
-                <span className="w-5 text-center text-lg">✉️</span> {reservation.email || 'Sin email'}
-              </p>
-              <p className="flex items-center gap-3">
-                <span className="w-5 text-center text-lg">📞</span> {reservation.phone || 'Sin teléfono'}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <Label className="text-muted-foreground text-xs uppercase tracking-wide font-bold">Detalles de Estadía</Label>
-          <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-xl space-y-3 shadow-sm border border-slate-100 dark:border-slate-700">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-bold text-xl text-emerald-700">{reservation.unit}</p>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Unidad Reservada</p>
-              </div>
-              <Badge variant="secondary" className="px-3 py-1">{reservation.pax} Pasajeros</Badge>
-            </div>
-            <Separator />
-            <div className="grid grid-cols-2 gap-4 text-sm mt-2">
-              <div className="bg-white dark:bg-black/20 p-2 rounded border border-gray-100 dark:border-gray-700">
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{new Date(reservation.checkIn).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
-                <p className="text-[10px] uppercase text-gray-400 font-bold">Check-in</p>
-              </div>
-              <div className="bg-white dark:bg-black/20 p-2 rounded border border-gray-100 dark:border-gray-700">
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{new Date(reservation.checkOut).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
-                <p className="text-[10px] uppercase text-gray-400 font-bold">Check-out</p>
+            <div className="overflow-hidden">
+              <p className="font-bold text-base truncate">{reservation.guestName}</p>
+              <div className="flex flex-col text-xs text-muted-foreground truncate">
+                 <span>{reservation.email || 'Sin email'}</span>
+                 <span>{reservation.phone || 'Sin teléfono'}</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-
-      {/* Additional Info Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader className="py-3"><CardTitle className="text-sm">Mascotas</CardTitle></CardHeader>
-          <CardContent className="py-2 text-sm">
-            {reservation.hasPet ? (
-              <div className="text-emerald-700 font-medium flex flex-col">
-                <span>✅ Viaja con Mascota</span>
-                <span className="text-xs text-muted-foreground">
-                  {reservation.petCharged ? "Costo Adicional Cobrado" : "Sin Cargo Adicional"}
-                </span>
+        {/* Stay Compact */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
+           <div className="flex justify-between items-center">
+             <Badge variant="outline" className="text-base font-bold border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1">
+               {reservation.unit}
+             </Badge>
+             <span className="text-sm text-muted-foreground font-medium">{reservation.pax} Pax • {nights} Noches</span>
+           </div>
+           <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-gray-50 p-2 rounded border">
+                 <span className="text-xs text-gray-500 block uppercase font-bold">In</span>
+                 <span className="font-semibold">{new Date(reservation.checkIn).toLocaleDateString('es-AR', {day:'numeric', month:'short'})}</span>
               </div>
-            ) : <span className="text-muted-foreground">No aplica</span>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="py-3"><CardTitle className="text-sm">Vehículo</CardTitle></CardHeader>
-          <CardContent className="py-2 text-sm font-mono">
-            {reservation.licensePlate || "No registrado"}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="py-3"><CardTitle className="text-sm">Origen & Políticas</CardTitle></CardHeader>
-          <CardContent className="py-2 text-sm space-y-1">
-            <div><span className="font-semibold">Canal:</span> {reservation.source || "Directo"}</div>
-            <div><span className="font-semibold">Cancelación:</span> {reservation.cancellationPolicy || "Estándar"}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cleaning Services */}
-      <div className="space-y-2 mb-6">
-        <h3 className="font-bold text-sm flex items-center gap-2 text-slate-700">
-          🧹 Servicios de Limpieza Programados
-        </h3>
-        {cleaningTasks.length > 0 ? (
-          <div className="flex gap-2 flex-wrap">
-            {cleaningTasks.map(task => (
-              <Badge key={task.id} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                {new Date(task.checkIn).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground italic">No hay servicios de limpieza automáticos generados.</p>
-        )}
-      </div>
-
-      {/* Financial Summary */}
-      <div className="grid grid-cols-3 gap-6 text-center">
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Total Reserva (USD)</p>
-          <p className="font-extrabold text-3xl text-slate-800 dark:text-slate-100">
-            USD {(reservation.totalUSD || 0).toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800">
-          <p className="text-xs text-emerald-600 dark:text-emerald-400 uppercase font-bold mb-2">Total Pagado (USD)</p>
-          <p className="font-extrabold text-3xl text-emerald-600 dark:text-emerald-400">
-            USD {(reservation.amountPaidUSD || getComputedPaidUSD(reservation)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-rose-50 dark:bg-rose-900/20 p-5 rounded-2xl border border-rose-100 dark:border-rose-800">
-          <p className="text-xs text-rose-600 dark:text-rose-400 uppercase font-bold mb-2">Saldo Pendiente (USD)</p>
-          <p className="font-extrabold text-3xl text-rose-600 dark:text-rose-400">
-            USD {getBalanceUSD(reservation).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </p>
-        </div>
-      </div>
-
-      {/* Balances Detail */}
-      <div className="grid grid-cols-2 gap-4 mt-2">
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
-          <p className="text-[10px] uppercase font-bold text-slate-500">Saldo en Pesos (Estimado)</p>
-          <p className="text-xl font-bold text-slate-700">
-            ARS $ {((reservation.balance_usd || getBalanceUSD(reservation)) * (reservation.exchangeRate || exchangeRate || 0)).toLocaleString()}
-          </p>
-          <p className="text-[10px] text-slate-400">Cotización guardada: ${reservation.exchangeRate || "-"}</p>
-        </div>
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
-          <p className="text-[10px] uppercase font-bold text-slate-500">Noches / Precio Promedio</p>
-          <p className="text-sm font-medium text-slate-700 mt-1">
-            {Math.ceil((new Date(reservation.checkOut).getTime() - new Date(reservation.checkIn).getTime()) / (1000 * 60 * 60 * 24))} noches
-            {' @ '}
-            USD {((reservation.totalUSD || 0) / Math.max(1, Math.ceil((new Date(reservation.checkOut).getTime() - new Date(reservation.checkIn).getTime()) / (1000 * 60 * 60 * 24)))).toFixed(2)} / noche
-          </p>
-        </div>
-      </div>
-
-      <Separator className="my-6" />
-
-      {/* Facturación Global */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-500" /> Facturación
-          </h3>
-          <Badge variant="outline" className="font-normal">Opcional</Badge>
-        </div>
-        <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 flex items-center gap-4">
-          <div className="flex-1">
-            <Label className="text-xs uppercase text-indigo-600 font-bold mb-1 block">Factura Única (Total)</Label>
-            <Input
-              value={reservation.invoiceNumber || ''}
-              onChange={handleGlobalInvoiceChange}
-              placeholder="Ingrese N° de Factura Global..."
-              className="bg-white border-indigo-200 focus-visible:ring-indigo-500"
-            />
-            <p className="text-[10px] text-gray-500 mt-1">Si completa esto, se asume una factura única por el total.</p>
-          </div>
-        </div>
-      </div>
-
-      <Separator className="my-6" />
-
-      {/* Payments Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600" /> Historial de Pagos
-          </h3>
-        </div>
-
-        {/* Add Payment Form */}
-        <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-xl space-y-4 border border-slate-200 dark:border-slate-700">
-          <Label className="text-xs font-bold uppercase text-slate-500">Registrar Nuevo Pago</Label>
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-3">
-              <Label className="text-[10px] mb-1 block text-gray-400">Fecha</Label>
-              <Input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="bg-white h-9"
-              />
-            </div>
-            <div className="col-span-3">
-              <Label className="text-[10px] mb-1 block text-gray-400">Método</Label>
-              <Select value={method} onValueChange={(v: any) => setMethod(v)}>
-                <SelectTrigger className="bg-white h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Efectivo">Efectivo</SelectItem>
-                  <SelectItem value="Transferencia">Transferencia</SelectItem>
-                  <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                  <SelectItem value="Debito">Débito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <Label className="text-[10px] mb-1 block text-gray-400">Moneda</Label>
-              <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-                <SelectTrigger className="bg-white h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="ARS">ARS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-4">
-              <Label className="text-[10px] mb-1 block text-gray-400">Monto</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="bg-white h-9 font-mono"
-                />
+              <div className="bg-gray-50 p-2 rounded border">
+                 <span className="text-xs text-gray-500 block uppercase font-bold">Out</span>
+                 <span className="font-semibold">{new Date(reservation.checkOut).toLocaleDateString('es-AR', {day:'numeric', month:'short'})}</span>
               </div>
-            </div>
-          </div>
-          {currency === 'ARS' && (
-            <div className="col-span-12 mt-2 bg-blue-50 p-2 rounded text-xs text-blue-800 flex items-center justify-between">
-              <span>Cotización Referencia (BNA): <strong>${exchangeRate}</strong></span>
-              <div className="flex items-center gap-2">
-                <Label className="whitespace-nowrap">Cotización Aplicada:</Label>
-                <Input
-                  type="number"
-                  className="h-6 w-24 bg-white"
-                  value={exchangeRate}
-                  onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-            </div>
-          )}
+           </div>
+        </div>
 
-          <div className="grid grid-cols-12 gap-3 items-end">
-            <div className="col-span-9">
-              <Label className="text-[10px] mb-1 block text-gray-400">N° Factura (Opcional por pago)</Label>
-              <Input
-                placeholder="Ej: A-000123"
-                value={paymentInvoice}
-                onChange={e => setPaymentInvoice(e.target.value)}
-                className="bg-white h-9"
-              />
-            </div>
-            <div className="col-span-3">
-              <Button onClick={handleAddPayment} className="w-full bg-emerald-600 hover:bg-emerald-700 h-9">
-                <Plus className="w-4 h-4 mr-1" /> Registrar
-              </Button>
-            </div>
+        {/* Attributes Grid */}
+        <div className="grid grid-cols-2 gap-3">
+           <div className="bg-gray-50 p-3 rounded border text-sm">
+              <span className="text-xs text-gray-500 block uppercase font-bold">Mascota</span>
+              {reservation.hasPet ? (
+                 <span className="text-emerald-600 font-medium">Sí {reservation.petCharged ? '($)' : '(Free)'}</span>
+              ) : <span>No</span>}
+           </div>
+           <div className="bg-gray-50 p-3 rounded border text-sm truncate">
+              <span className="text-xs text-gray-500 block uppercase font-bold">Patente</span>
+              {reservation.licensePlate || '-'}
+           </div>
+           <div className="bg-gray-50 p-3 rounded border text-sm truncate col-span-2">
+              <span className="text-xs text-gray-500 block uppercase font-bold">Canal / Política</span>
+              {reservation.source || 'Directo'} • {reservation.cancellationPolicy || 'Std'}
+           </div>
+        </div>
+
+        {/* Observations */}
+        <div className="space-y-1">
+          <Label className="text-sm">Observaciones</Label>
+          <div className="text-sm bg-muted p-3 rounded min-h-[60px] max-h-[100px] overflow-y-auto text-gray-600 italic">
+            {reservation.observations || "Sin observaciones."}
           </div>
         </div>
 
-        {/* Payments Table */}
-        <div className="border rounded-xl overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader className="bg-gray-50 dark:bg-gray-900">
-              <TableRow>
-                <TableHead className="w-[120px]">Fecha</TableHead>
-                <TableHead>Método</TableHead>
-                <TableHead>Moneda</TableHead>
-                <TableHead>Cotización</TableHead>
-                <TableHead>Factura #</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(!reservation.payments || reservation.payments.length === 0) ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-8">
-                    No hay pagos registrados aún.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                reservation.payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-medium text-gray-600">{new Date(payment.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</TableCell>
-                    <TableCell>{payment.method}</TableCell>
-                    <TableCell>{payment.currency}</TableCell>
-                    <TableCell>
-                      {payment.exchangeRate ? (
-                        <span className="text-xs text-gray-500">${payment.exchangeRate}</span>
-                      ) : (
-                        <span className="text-xs text-gray-300">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {payment.invoiceNumber ? (
-                        <Badge variant="outline" className="font-mono text-[10px]">{payment.invoiceNumber}</Badge>
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-emerald-600">
-                      {payment.currency === 'USD' ? 'USD ' : '$'}
-                      {payment.amount.toLocaleString()}
-                      {payment.currency === 'ARS' && payment.exchangeRate && (
-                        <div className="text-[10px] text-gray-400">
-                          (USD {(payment.amount / payment.exchangeRate).toFixed(2)})
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <Separator className="my-6" />
-
-      <div className="space-y-4">
-        <h3 className="font-semibold text-sm uppercase text-muted-foreground">Acciones & Comunicaciones</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="outline" className="justify-start gap-2 h-auto py-3" disabled>
-            <FileText className="w-5 h-5 text-gray-500" />
-            <div className="flex flex-col items-start">
-              <span>Generar Factura</span>
-              <span className="text-xs text-gray-400 font-normal">No disponible aún</span>
-            </div>
-          </Button>
-
-          <Popover open={previewOpen} onOpenChange={setPreviewOpen}>
+        {/* Actions Button Group */}
+        <div className="flex flex-wrap gap-2 pt-2">
+           <Popover open={previewOpen} onOpenChange={setPreviewOpen}>
             <PopoverTrigger asChild>
-              <Button className="justify-start gap-2 h-auto py-3 bg-blue-600 hover:bg-blue-700">
-                <Send className="w-5 h-5" />
-                <div className="flex flex-col items-start">
-                  <span>Enviar Bienvenida</span>
-                  <span className="text-xs text-blue-200 font-normal">WhatsApp / Email</span>
-                </div>
+              <Button size="sm" variant="outline" className="h-9 text-xs flex-1 gap-1 text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100">
+                <Send className="w-4 h-4" /> Enviar Bienvenida
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm">Previsualización</h4>
-                <div className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap max-h-60 overflow-y-auto border">
-                  {mensajes.bienvenida
-                    .replace('{nombre}', reservation.guestName)
-                    .replace('{unidad}', reservation.unit)}
-                </div>
-                <Button size="sm" onClick={() => { alert("Enviado!"); setPreviewOpen(false); }} className="w-full">
-                  Confirmar Envío
-                </Button>
-              </div>
+            <PopoverContent className="w-80 p-3">
+               <div className="text-xs bg-muted p-2 rounded whitespace-pre-wrap max-h-40 overflow-y-auto mb-2">
+                  {mensajes.bienvenida.replace('{nombre}', reservation.guestName).replace('{unidad}', reservation.unit)}
+               </div>
+               <Button size="sm" onClick={() => { alert("Enviado!"); setPreviewOpen(false); }} className="w-full h-8">Confirmar Envío</Button>
             </PopoverContent>
-          </Popover>
-
-
+           </Popover>
+           
+           <Button size="sm" variant="ghost" className="h-9 text-xs w-full text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => onDelete(reservation.id)}>
+              <Trash2 className="w-4 h-4 mr-2" /> Eliminar Reserva
+           </Button>
         </div>
+
       </div>
 
-      <div className="space-y-2">
-        <Label>Observaciones</Label>
-        <div className="text-sm bg-muted p-3 rounded min-h-[60px] text-gray-600 italic">
-          {reservation.observations || "Sin observaciones registradas."}
+      {/* RIGHT COLUMN: Finance & Payments (Span 7) */}
+      <div className="col-span-12 md:col-span-7 space-y-4 flex flex-col h-full">
+        
+        {/* Financial Summary Row */}
+        <div className="grid grid-cols-3 gap-3">
+           <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded border text-center">
+             <span className="text-xs text-muted-foreground uppercase block font-bold">Total</span>
+             <span className="font-bold text-lg">USD {(reservation.totalUSD || 0).toLocaleString()}</span>
+           </div>
+           <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded border border-emerald-100 text-center">
+             <span className="text-xs text-emerald-600 uppercase block font-bold">Pagado</span>
+             <span className="font-bold text-lg text-emerald-700">USD {(reservation.amountPaidUSD || getComputedPaidUSD(reservation)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+           </div>
+           <div className="bg-rose-50 dark:bg-rose-900/20 p-3 rounded border border-rose-100 text-center">
+             <span className="text-xs text-rose-600 uppercase block font-bold">Saldo</span>
+             <span className="font-bold text-lg text-rose-700">USD {getBalanceUSD(reservation).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+           </div>
         </div>
-      </div>
 
-      <Separator className="my-6" />
-
-      {/* Danger Zone */}
-      <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900 rounded-xl p-4">
-        <h4 className="text-red-800 dark:text-red-300 font-bold text-sm mb-2 flex items-center gap-2">
-          <Trash2 className="w-4 h-4" /> Zona de Peligro
-        </h4>
-        <p className="text-xs text-red-600 dark:text-red-400 mb-4">
-          Eliminar la reserva es una acción irreversible. Se perderá todo el historial de pagos y datos asociados.
-        </p>
-        <Button
-          variant="destructive"
-          className="w-full sm:w-auto"
-          onClick={() => onDelete(reservation.id)}
-        >
-          Eliminar Reserva Permanentemente
-        </Button>
-      </div>
-
-      <Separator />
-
-      {/* Audit Info */}
-      <div className="text-xs text-slate-400 flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-        <div>
-          Creado por: <span className="font-medium text-slate-600">{reservation.createdBy || "Desconocido"}</span>
+        {/* Breakdown & ARS */}
+        <div className="bg-white p-3 rounded border text-sm space-y-2">
+           <div className="flex justify-between">
+              <span className="text-gray-500">Valor Estadía ({nights} noches)</span>
+              <span className="font-medium">USD {baseStay.toLocaleString()}</span>
+           </div>
+           {petFee > 0 && (
+             <div className="flex justify-between text-orange-600 font-medium">
+                <span>+ Adicional Mascota</span>
+                <span>USD {petFee.toLocaleString()}</span>
+             </div>
+           )}
+           <Separator />
+           <div className="flex justify-between items-center">
+              <span className="text-xs uppercase font-bold text-gray-400">Saldo estimado en Pesos</span>
+              <span className="font-mono text-base text-gray-700 font-bold">~ ARS $ {((reservation.balance_usd || getBalanceUSD(reservation)) * (reservation.exchangeRate || exchangeRate || 0)).toLocaleString()}</span>
+           </div>
         </div>
-        <div>
-          Fecha de creacion: <span className="font-medium text-slate-600">
-            {reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('es-AR') : "Desconocida"}
-          </span>
+
+        {/* Payment Form Compact */}
+        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+           <div className="flex gap-2 mb-2">
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs w-32 bg-white" />
+              <Select value={method} onValueChange={(v: any) => setMethod(v)}>
+                <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="Efectivo">Efectivo</SelectItem><SelectItem value="Transferencia">Transferencia</SelectItem><SelectItem value="Tarjeta">Tarjeta</SelectItem></SelectContent>
+              </Select>
+              <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
+                <SelectTrigger className="h-8 text-xs w-24 bg-white"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ARS">ARS</SelectItem></SelectContent>
+              </Select>
+           </div>
+           <div className="flex gap-2">
+              <div className="relative flex-1">
+                 <Input 
+                   type="number" 
+                   placeholder="Monto" 
+                   value={amount} 
+                   onChange={e => setAmount(e.target.value)} 
+                   className="h-8 text-sm pl-3 bg-white" 
+                 />
+              </div>
+              <Button onClick={handleAddPayment} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs px-4">
+                 <Plus className="w-4 h-4 mr-1" /> Registrar Pago
+              </Button>
+           </div>
+           {currency === 'ARS' && (
+             <div className="flex items-center gap-2 mt-2 px-1">
+                <span className="text-xs text-gray-500">Cotización:</span>
+                <Input type="number" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)} className="h-6 w-20 text-xs p-1 bg-white text-right" />
+             </div>
+           )}
         </div>
+
+        {/* Payments History Table */}
+        <div className="flex-1 overflow-auto border rounded-lg bg-white min-h-[150px]">
+           <Table>
+             <TableHeader className="sticky top-0 bg-gray-50 z-10">
+               <TableRow className="h-9">
+                 <TableHead className="py-2 text-xs w-24">Fecha</TableHead>
+                 <TableHead className="py-2 text-xs">Método</TableHead>
+                 <TableHead className="py-2 text-xs text-right">Monto</TableHead>
+                 <TableHead className="py-2 text-xs w-10"></TableHead>
+               </TableRow>
+             </TableHeader>
+             <TableBody>
+               {(!reservation.payments || reservation.payments.length === 0) ? (
+                 <TableRow><TableCell colSpan={4} className="text-center py-6 text-sm text-muted-foreground">Sin pagos registrados.</TableCell></TableRow>
+               ) : (
+                 reservation.payments.map((p) => (
+                   <TableRow key={p.id} className="h-10 hover:bg-slate-50 group">
+                     <TableCell className="py-2 text-xs text-gray-600">{new Date(p.date).toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'})}</TableCell>
+                     <TableCell className="py-2 text-xs">
+                        <div className="font-medium">{p.method}</div>
+                        <div className="text-[10px] text-gray-400">{p.currency} {p.currency === 'ARS' ? `($${p.exchangeRate})` : ''}</div>
+                     </TableCell>
+                     <TableCell className="py-2 text-sm font-bold text-right text-emerald-600">
+                        {p.currency === 'USD' ? 'USD ' : '$ '}
+                        {p.amount.toLocaleString()}
+                     </TableCell>
+                     <TableCell className="py-1 px-1 text-center">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50" title="Generar Factura de este pago">
+                           <FileText className="w-3.5 h-3.5" />
+                        </Button>
+                     </TableCell>
+                   </TableRow>
+                 ))
+               )}
+             </TableBody>
+           </Table>
+        </div>
+
+        {/* Invoicing Totals */}
+        <div className="border-t pt-3">
+           <Button variant="outline" className="w-full gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+              <FileText className="w-4 h-4" /> Facturar Total Estadía (USD {(reservation.totalUSD || 0).toLocaleString()})
+           </Button>
+        </div>
+
       </div>
-    </div >
+    </div>
   );
 }
 

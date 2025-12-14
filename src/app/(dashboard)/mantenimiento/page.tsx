@@ -26,6 +26,8 @@ import { Wrench, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
 import { useMaintenance } from '@/contexts/MaintenanceContext';
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 export default function Mantenimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -89,6 +91,104 @@ export default function Mantenimiento() {
   const ticketsPendientes = tickets.filter((t) => t.estado === 'pendiente').length;
   const ticketsCompletados = tickets.filter((t) => t.estado === 'completado').length;
 
+  const renderTable = (sourceTickets: typeof tickets, title: string) => {
+    const filtered = sourceTickets.filter(t => {
+      const matchesSearch = t.problema.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            t.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            t.asignado.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPriority = filterPriority === 'all' || t.prioridad === filterPriority;
+      return matchesSearch && matchesPriority;
+    });
+
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>{title}</CardTitle>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar ticket..."
+                  className="pl-9 w-64"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-40">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="urgente">Urgente</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                  <SelectItem value="media">Media</SelectItem>
+                  <SelectItem value="baja">Baja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Unidad</TableHead>
+                <TableHead>Problema</TableHead>
+                <TableHead>Prioridad</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Asignado</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    No se encontraron tickets.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((ticket) => (
+                  <TableRow key={ticket.id}>
+                    <TableCell>#{ticket.id}</TableCell>
+                    <TableCell>{ticket.unidad}</TableCell>
+                    <TableCell className="max-w-[250px]">
+                      {ticket.problema}
+                    </TableCell>
+                    <TableCell>{getPriorityBadge(ticket.prioridad)}</TableCell>
+                    <TableCell>{getStatusBadge(ticket.estado)}</TableCell>
+                    <TableCell>{ticket.fecha}</TableCell>
+                    <TableCell>{ticket.asignado}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline">
+                          Ver
+                        </Button>
+                        {ticket.estado !== 'completado' && (
+                          <Button
+                            size="sm"
+                            className="bg-[var(--color-primary)]"
+                          >
+                            Actualizar
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -135,84 +235,20 @@ export default function Mantenimiento() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Tickets de Mantenimiento</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar ticket..."
-                  className="pl-9 w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger className="w-40">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="urgente">Urgente</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="media">Media</SelectItem>
-                  <SelectItem value="baja">Baja</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead>Problema</TableHead>
-                <TableHead>Prioridad</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Asignado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tickets.map((ticket) => (
-                <TableRow key={ticket.id}>
-                  <TableCell>#{ticket.id}</TableCell>
-                  <TableCell>{ticket.unidad}</TableCell>
-                  <TableCell className="max-w-[250px]">
-                    {ticket.problema}
-                  </TableCell>
-                  <TableCell>{getPriorityBadge(ticket.prioridad)}</TableCell>
-                  <TableCell>{getStatusBadge(ticket.estado)}</TableCell>
-                  <TableCell>{ticket.fecha}</TableCell>
-                  <TableCell>{ticket.asignado}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline">
-                        Ver
-                      </Button>
-                      {ticket.estado !== 'completado' && (
-                        <Button
-                          size="sm"
-                          className="bg-[var(--color-primary)]"
-                        >
-                          Actualizar
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="general">Vista General</TabsTrigger>
+          <TabsTrigger value="julian">Julián Electricista</TabsTrigger>
+        </TabsList>
+        <TabsContent value="general">
+          {renderTable(tickets, "Todos los Tickets")}
+        </TabsContent>
+        <TabsContent value="julian">
+          {renderTable(tickets.filter(t => t.asignado === 'Julián Electricista'), "Tickets de Julián")}
+        </TabsContent>
+      </Tabs>
 
+      {/* Urgent Alerts section kept as is */}
       {ticketsUrgentes > 0 && (
         <Card className="border-red-200 dark:border-red-800">
           <CardHeader>
