@@ -115,7 +115,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     // Explicit save is handled by useEffect, but we keep this for API/Feedback purposes
     // or if we switch to manual save mode later.
     // For now, it just confirms.
-    console.log('Mensajes guardados:', mensajes);
+
   };
 
   return (

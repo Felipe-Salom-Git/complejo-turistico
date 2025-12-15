@@ -19,41 +19,55 @@ export interface ReservationHistoryItem {
   details?: string;
 }
 
+/**
+ * Interfaz principal para una Reserva.
+ * Contiene tanto los datos básicos (fechas, huesped) como los financieros y de estado.
+ */
 export interface Reservation {
   id: string;
   unit: string;
   guestName: string;
   checkIn: Date;
   checkOut: Date;
+  /** Estado actual de la reserva en el ciclo de vida */
   status: "active" | "checkout" | "cleaning" | "cancelled" | "no-show" | "reprogrammed" | "relocated";
   phone?: string;
   email?: string;
   pax?: number;
   observations?: string;
-  total?: number; // Kept for legacy/ARS reference
-  totalUSD?: number; // The master total in USD
-  amountPaid?: number; // Sum of amounts (mixed currencies, strictly for caching)
-  amountPaidUSD?: number; // Calculated total paid in USD
+
+  /** Total calculado históricamente o en ARS (legado) */
+  total?: number;
+  /** Total calculado en USD (moneda base del sistema) */
+  totalUSD?: number;
+  /** Suma de pagos realizados (puede mezclar monedas, usar para cache) */
+  amountPaid?: number;
+  /** Total pagado normalizado a USD */
+  amountPaidUSD?: number;
+
   payments?: Payment[];
-  invoiceNumber?: string; // For total invoice scenario
+  invoiceNumber?: string;
   arrivalTime?: string;
-  source?: string; // Booking channel
+  source?: string;
   cancellationPolicy?: string;
+
   hasPet?: boolean;
   petCharged?: boolean;
   licensePlate?: string;
+
   createdAt?: Date;
   createdBy?: string;
 
-  // Advanced Status Fields
+  // Campos para control de Estado Avanzado
   originalCheckIn?: Date;
   originalCheckOut?: Date;
+  /** Si fue reubicado, indica a qué complejo se movió */
   relocationComplex?: 'Huella Andina' | 'Santa Rita';
 
-  // Requested snake_case fields
+  // Campos financieros calculados/denormalizados para acceso rápido
   balance_usd?: number;
   balance_ars?: number;
-  exchangeRate?: number; // Store the rate used for conversion
+  exchangeRate?: number; // Tipo de cambio al momento de la reserva
   history?: ReservationHistoryItem[];
 }
 
@@ -239,36 +253,44 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
 
 
 
+  /**
+   * Busca una unidad disponible basada en el tipo solicitado y las fechas.
+   * Estrategia de búsqueda:
+   * 1. Identificar unidades ocupadas en el rango.
+   * 2. Verificar disponibilidad exacta.
+   * 3. Verificar grupo de unidades (e.g. "Tipo A").
+   * 4. Fallback por prefijo.
+   */
   const findAvailableUnit = (requestedType: string, checkIn: Date, checkOut: Date): string | null => {
-    // 1. Identify occupied units in the range
+    // 1. Identificar unidades ocupadas en el rango asignado
     const start = new Date(checkIn);
     const end = new Date(checkOut);
 
     const occupiedUnits = reservations
       .filter(r => {
-        // Ignore cancelled or non-blocking statuses
+        // Ignorar estados que no bloquean calendario
         if (r.status === 'cancelled' || r.status === 'no-show' || r.status === 'relocated') return false;
 
         const rStart = new Date(r.checkIn);
         const rEnd = new Date(r.checkOut);
-        // Overlap check
-        // Also check if status blocks calendar (active, cleaning, reprogrammed)
+
+        // Chequeo de solapamiento de fechas
+        // Y verificar estados bloqueantes (active, cleaning, reprogrammed, checkout)
         return (start < rEnd && end > rStart) && (r.status === 'active' || r.status === 'cleaning' || r.status === 'reprogrammed' || r.status === 'checkout');
       })
       .map(r => r.unit);
 
-    // 2. Helper to check availability
+    // 2. Helper para chequear disponibilidad
     const isAvailable = (u: string) => !occupiedUnits.includes(u);
 
-    // 3. Exact Match Strategy
-    // If requestedType is a specific known unit (e.g. "LG-2")
+    // 3. Estrategia de Coincidencia Exacta
+    // Si requestedType es una unidad específica (ej. "LG-2")
     if (INVENTORY.includes(requestedType) && isAvailable(requestedType)) {
       return requestedType;
     }
 
-    // 4. Group Strategy (e.g. "Unidad Tipo A")
-    // Check if requestedType matches a group key (exact or fuzzy)
-    // We look for a group key that contains the requested string (e.g. "Tipo A" matches "Unidad Tipo A")
+    // 4. Estrategia de Grupo (ej. "Unidad Tipo A")
+    // Buscamos si el tipo solicitado corresponde a una clave de grupo
     const matchedGroupKey = Object.keys(UNIT_GROUPS).find(key => key.toLowerCase().includes(requestedType.toLowerCase()));
 
     if (matchedGroupKey) {
@@ -277,8 +299,8 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
       if (availableUnit) return availableUnit;
     }
 
-    // 5. Fallback: Prefix Strategy
-    // e.g. "LG-2" if user typed it manually but missed casing? Or "LG" to find any LG?
+    // 5. Fallback: Estrategia de Prefijo
+    // Búsqueda aproximada si el usuario tipeó manualmente o faltó casing
     const candidates = INVENTORY.filter(u => u.toLowerCase().startsWith(requestedType.toLowerCase()));
     const availableCandidate = candidates.find(isAvailable);
 

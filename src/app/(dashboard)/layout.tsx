@@ -5,6 +5,7 @@ import { StaffProvider } from '@/contexts/StaffContext';
 import { QuotationsProvider } from '@/contexts/QuotationsContext';
 import { MessagesProvider } from '@/contexts/MessagesContext';
 import { GuestsProvider } from '@/contexts/GuestsContext';
+import { StockProvider } from '@/contexts/StockContext';
 
 export default function DashboardLayout({
   children,
@@ -19,7 +20,9 @@ export default function DashboardLayout({
             <QuotationsProvider>
               <GuestsProvider>
                 <MessagesProvider>
-                  {children}
+                  <StockProvider>
+                    {children}
+                  </StockProvider>
                 </MessagesProvider>
               </GuestsProvider>
             </QuotationsProvider>

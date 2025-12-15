@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  Users,
+
   CalendarCheck,
   Package,
   Wrench,
@@ -54,9 +54,8 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
-        collapsed ? 'w-16' : 'w-64'
-      }`}
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${collapsed ? 'w-16' : 'w-64'
+        }`}
       style={{ backgroundColor: 'var(--sidebar-bg, white)' }}
     >
       <div className="h-full flex flex-col">
@@ -74,7 +73,7 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 px-2"  style={{ height: 'calc(100vh - 8rem)' }}>
+        <ScrollArea className="flex-1 px-2" style={{ height: 'calc(100vh - 8rem)' }}>
           <div className="space-y-1">
             {menuItems.map((item) => {
               if (item.type === 'separator') {
@@ -97,13 +96,11 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
                 <Button
                   key={item.id}
                   variant={isActive ? 'default' : 'ghost'}
-                  className={`w-full justify-start ${
-                    collapsed ? 'px-2' : 'px-3'
-                  } ${
-                    isActive
+                  className={`w-full justify-start ${collapsed ? 'px-2' : 'px-3'
+                    } ${isActive
                       ? 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90'
                       : ''
-                  }`}
+                    }`}
                   onClick={() => onNavigate(item.id)}
                 >
                   <Icon className={`w-5 h-5 ${collapsed ? '' : 'mr-3'}`} />

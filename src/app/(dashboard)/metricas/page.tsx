@@ -187,7 +187,8 @@ export default function Metricas() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) =>
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  label={({ name, percent }: any) =>
                     `${name} ${(percent * 100).toFixed(0)}%`
                   }
                   outerRadius={100}

@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Gestión de Complejo Turístico
 
-## Getting Started
+Este proyecto es una aplicación web moderna para la gestión de reservas, huéspedes y operaciones de un complejo turístico (PMS - Property Management System).
 
-First, run the development server:
+## 🚀 Tecnologías
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Construido con un stack tecnológico moderno y robusto:
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
+- **Lenguaje**: TypeScript
+- **Estilos**: Tailwind CSS
+- **Componentes**: Radix UI / Shadcn UI
+- **Iconos**: Lucide React
+- **Estado Global**: React Context API con persistencia local (LocalStorage)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📂 Estructura del Proyecto
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `src/app`: Páginas y rutas de la aplicación (Dashboard, Reservas, etc.).
+- `src/components`:
+  - `/ui`: Componentes base reutilizables (Botones, Inputs, Cards).
+  - `/dashboard`: Widgets y componentes específicos del negocio.
+- `src/contexts`: Lógica de negocio y estado global (Reservas, Huéspedes, Pagos).
+- `src/types`: Definiciones de tipos e interfaces del dominio.
+- `src/lib`: Utilidades y constantes.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Instalación y Ejecución
 
-## Learn More
+1.  **Instalar dependencias**:
+    ```bash
+    npm install
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+2.  **Iniciar servidor de desarrollo**:
+    ```bash
+    npm run dev
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3.  Abrir [http://localhost:3000](http://localhost:3000) en el navegador.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 💡 Funcionamiento del Sistema
 
-## Deploy on Vercel
+### Gestión de Reservas
+El núcleo del sistema es el `ReservationsContext`, que actúa como una base de datos en memoria (persistida en LocalStorage para esta versión). Maneja:
+- Creación, edición y cancelación de reservas.
+- Lógica de asignación de unidades.
+- Cálculos financieros (Totales en USD, pagos parciales).
+- Control de estados (Activa, Limpieza, Check-out).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Gestión de Huéspedes
+`GuestsContext` mantiene una base de datos centralizada de clientes, permitiendo historial de visitas y autocompletado en nuevas reservas.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Calendario
+La vista de calendario visualiza la ocupación por unidad y fecha, permitiendo interactuar directamente con las reservas.

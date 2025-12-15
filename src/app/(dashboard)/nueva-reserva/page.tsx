@@ -14,9 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CalendarIcon, User, Home, CreditCard, Save, Search, Check } from "lucide-react";
-import { useReservations, UNIT_GROUPS, INVENTORY, Reservation } from "@/contexts/ReservationsContext";
-import { useGuests, Guest } from "@/contexts/GuestsContext";
+import { CalendarIcon, User, Home, CreditCard, Save, Check } from "lucide-react";
+import { useReservations, UNIT_GROUPS, Reservation } from "@/contexts/ReservationsContext";
+import { useGuests } from "@/contexts/GuestsContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar"; // Assuming standard shadcn calendar
@@ -27,14 +27,14 @@ import { Badge } from "@/components/ui/badge";
 
 export default function NuevaReservaPage() {
   const router = useRouter();
-  const { addReservation, reservations, findAvailableUnit } = useReservations();
-  const { guests, addGuest } = useGuests();
+  const { addReservation, findAvailableUnit } = useReservations();
+  const { addGuest } = useGuests();
 
   // Form State
   const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  
+
   const [checkIn, setCheckIn] = useState<Date | undefined>(new Date());
   const [checkOut, setCheckOut] = useState<Date | undefined>(undefined);
 
@@ -46,7 +46,7 @@ export default function NuevaReservaPage() {
   const [hasPet, setHasPet] = useState(false);
   const [petCharged, setPetCharged] = useState(false);
 
-  const [manualBasePrice, setManualBasePrice] = useState<string>(""); 
+  const [manualBasePrice, setManualBasePrice] = useState<string>("");
   // Removed explicit pricePerNightUSD state as detailed breakdown logic is now simpler (manual base + pet fee)
 
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -75,14 +75,15 @@ export default function NuevaReservaPage() {
     ? Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  // Manual Base + Pet Fee
+  // Cálculos Financieros
+  // Se prioriza el valor manual base y se suma el recargo de mascota si corresponde.
   const petFeeTotal = (hasPet && petCharged) ? (nights * 10) : 0;
   const baseValue = parseFloat(manualBasePrice || "0");
   const finalTotalUSD = baseValue + petFeeTotal;
-  
-  // Effective daily rate for info
-  const effectiveDailyRate = nights > 0 ? (baseValue / nights) : 0;
 
+
+
+  // Normalización de pagos a USD para cálculo de saldo
   const totalPaidUSD = paymentCurrency === 'USD'
     ? parseFloat(paymentAmount || "0")
     : (parseFloat(paymentAmount || "0") / (exchangeRate || 1));
@@ -150,7 +151,7 @@ export default function NuevaReservaPage() {
         date: new Date(),
         amount: parseFloat(paymentAmount),
         currency: paymentCurrency,
-        method: paymentMethod as any,
+        method: paymentMethod as 'Efectivo' | 'Transferencia' | 'Tarjeta',
         invoiceNumber: undefined,
         exchangeRate: paymentCurrency === 'ARS' ? exchangeRate : undefined,
       }] : [],
@@ -203,38 +204,38 @@ export default function NuevaReservaPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nombre Completo</Label>
-                    <Input 
-                      placeholder="Nombre y Apellido"
-                      value={guestName} 
-                      onChange={e => setGuestName(e.target.value)} 
-                    />
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input 
-                      placeholder="estela@ejemplo.com"
-                      value={email} 
-                      onChange={e => setEmail(e.target.value)} 
-                    />
-                  </div>
-                  <div>
-                    <Label>Teléfono</Label>
-                    <Input 
-                      placeholder="+54 9 ..."
-                      value={phone} 
-                      onChange={e => setPhone(e.target.value)} 
-                    />
-                  </div>
-                  <div>
-                    <Label>Pasajeros (Pax)</Label>
-                    <Input type="number" value={pax} onChange={e => setPax(e.target.value)} min={1} />
-                  </div>
-                  <div>
-                    <Label>Patente Vehículo</Label>
-                    <Input value={licensePlate} onChange={e => setLicensePlate(e.target.value)} placeholder="AAA 123" />
-                  </div>
+                <div>
+                  <Label>Nombre Completo</Label>
+                  <Input
+                    placeholder="Nombre y Apellido"
+                    value={guestName}
+                    onChange={e => setGuestName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    placeholder="estela@ejemplo.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Teléfono</Label>
+                  <Input
+                    placeholder="+54 9 ..."
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Pasajeros (Pax)</Label>
+                  <Input type="number" value={pax} onChange={e => setPax(e.target.value)} min={1} />
+                </div>
+                <div>
+                  <Label>Patente Vehículo</Label>
+                  <Input value={licensePlate} onChange={e => setLicensePlate(e.target.value)} placeholder="AAA 123" />
+                </div>
               </div>
 
 
@@ -312,7 +313,7 @@ export default function NuevaReservaPage() {
                     <SelectContent className="max-h-[300px]">
                       {Object.keys(UNIT_GROUPS).map((group) => (
                         <SelectItem key={group} value={group}>
-                           {group}
+                          {group}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -362,27 +363,27 @@ export default function NuevaReservaPage() {
                       onChange={e => setManualBasePrice(e.target.value)}
                     />
                   </div>
-                  
+
                   {hasPet && (
                     <div className="bg-orange-50 border border-orange-100 p-3 rounded-lg flex justify-between items-center text-sm">
-                       <span className="text-orange-800 flex items-center gap-2">
-                         🐾 Recargo Mascota ({nights} noches)
-                       </span>
-                       <span className="font-bold text-orange-700">
-                         {petCharged ? `+ USD ${petFeeTotal}` : 'Bonificado'}
-                       </span>
+                      <span className="text-orange-800 flex items-center gap-2">
+                        🐾 Recargo Mascota ({nights} noches)
+                      </span>
+                      <span className="font-bold text-orange-700">
+                        {petCharged ? `+ USD ${petFeeTotal}` : 'Bonificado'}
+                      </span>
                     </div>
                   )}
 
                   <div className="mt-2 flex items-center justify-between bg-slate-100 p-2 rounded">
-                      <Label className="text-xs text-muted-foreground">Total Final:</Label>
-                      <span className="text-lg font-bold text-slate-800">USD {finalTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <Label className="text-xs text-muted-foreground">Total Final:</Label>
+                    <span className="text-lg font-bold text-slate-800">USD {finalTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
 
                   <div className="space-y-1 pt-2">
                     <Label className="text-xs">Política de Cancelación</Label>
-                    <Select 
-                      value={cancellationPolicy} 
+                    <Select
+                      value={cancellationPolicy}
                       onValueChange={(v) => {
                         setCancellationPolicy(v);
                         if (v === 'Prepaga') {
@@ -433,7 +434,7 @@ export default function NuevaReservaPage() {
                   </div>
                   <div>
                     <Label className="text-xs">Moneda</Label>
-                    <Select value={paymentCurrency} onValueChange={(v: any) => setPaymentCurrency(v)}>
+                    <Select value={paymentCurrency} onValueChange={(v) => setPaymentCurrency(v as 'USD' | 'ARS')}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="USD">USD</SelectItem>
@@ -467,13 +468,13 @@ export default function NuevaReservaPage() {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-8">
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="hasPet" 
-                    checked={hasPet} 
+                  <Checkbox
+                    id="hasPet"
+                    checked={hasPet}
                     onCheckedChange={(c: boolean) => {
                       setHasPet(c);
                       if (c) setPetCharged(true); // Default to charged when selected
-                    }} 
+                    }}
                   />
                   <Label htmlFor="hasPet">Tiene Mascota</Label>
                 </div>

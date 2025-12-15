@@ -2,16 +2,22 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+/**
+ * Representa a un huésped/cliente del complejo.
+ * Se utiliza para la base de datos de clientes y autocompletado.
+ */
 export interface Guest {
   id: string;
   firstName: string;
   lastName: string;
-  document: string; // DNI or Passport
+  /** DNI, Pasaporte o Cédula */
+  document: string;
   email: string;
   phone: string;
   address: string;
   city: string;
   country: string;
+  /** Cantidad de veces que se ha hospedado (histórico) */
   reservationsCount: number;
   lastVisit: string | null;
   notes: string;
@@ -66,12 +72,12 @@ export function GuestsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const incrementVisits = (id: string) => {
-      setGuests(prev => prev.map(g => {
-          if (g.id === id) {
-              return { ...g, reservationsCount: g.reservationsCount + 1, lastVisit: new Date().toISOString().split('T')[0] };
-          }
-          return g;
-      }));
+    setGuests(prev => prev.map(g => {
+      if (g.id === id) {
+        return { ...g, reservationsCount: g.reservationsCount + 1, lastVisit: new Date().toISOString().split('T')[0] };
+      }
+      return g;
+    }));
   };
 
   return (

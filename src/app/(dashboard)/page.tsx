@@ -3,6 +3,9 @@ import { CheckOutWidget } from '@/components/dashboard/CheckOutWidget';
 import { MaintenanceWidget } from '@/components/dashboard/MaintenanceWidget';
 import { DailyPassWidget } from '@/components/dashboard/DailyPassWidget';
 import { StaffCleaningWidget } from '@/components/dashboard/StaffCleaningWidget';
+import { AlertsWidget } from '@/components/dashboard/AlertsWidget';
+
+// Force rebuild
 
 export default function HomePage() {
   return (
@@ -10,10 +13,10 @@ export default function HomePage() {
       <div>
         <h1 className="text-3xl font-bold">Panel de Operaciones</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Resumen diario de actividades
+          Resumen diario de actividades y alertas del sistema
         </p>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <CheckInWidget />
         <CheckOutWidget />
@@ -23,6 +26,10 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <DailyPassWidget />
         <StaffCleaningWidget />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <AlertsWidget />
       </div>
     </div>
   );

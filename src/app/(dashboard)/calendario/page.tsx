@@ -19,8 +19,8 @@ import { useReservations, Reservation, UNIT_GROUPS } from "@/contexts/Reservatio
 import { useRouter } from "next/navigation";
 
 // Generate UNITS from UNIT_GROUPS shared with Context
-const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) => 
-  units.map((unitName, index) => {
+const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) =>
+  units.map((unitName) => {
     let type = "Estándar";
     let complex = "Las Gaviotas";
 
@@ -28,15 +28,15 @@ const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) =>
     else if (groupName.includes("Tipo B")) type = "Cabaña";
     else if (groupName.includes("Tipo C")) type = "Cabaña";
     else if (groupName.includes("Fontana")) {
-        complex = "La Fontana";
-        type = "Apartamento";
+      complex = "La Fontana";
+      type = "Apartamento";
     }
 
     // Preserve the group name as type for detailed view or filter?
     // The previous implementation used "Cabaña", "Apartamento".
     // Let's use the group name as the "Detailed Type" but map to broad types for filters if needed.
     // For now, let's just use the Group Name as Type to be precise as user requested.
-    type = groupName; 
+    type = groupName;
 
     return {
       id: unitName, // use name as ID to be safe or unique string
@@ -62,7 +62,7 @@ export default function Calendario() {
   const [filterComplex, setFilterComplex] = useState<string>("all");
   const [draggedReservation, setDraggedReservation] = useState<Reservation | null>(null);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
-  const [newReservationOpen, setNewReservationOpen] = useState(false);
+
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [splitDate, setSplitDate] = useState<string>("");
   const [splitUnit, setSplitUnit] = useState<string>("");
@@ -72,7 +72,7 @@ export default function Calendario() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    
+
     for (let i = 0; i < 14; i++) {
       const day = new Date(firstDay);
       day.setDate(firstDay.getDate() + i);
@@ -103,8 +103,8 @@ export default function Calendario() {
     const checkOutDate = new Date(reservation.checkOut);
     const compareDate = new Date(date);
     return checkOutDate.getFullYear() === compareDate.getFullYear() &&
-           checkOutDate.getMonth() === compareDate.getMonth() &&
-           checkOutDate.getDate() === compareDate.getDate();
+      checkOutDate.getMonth() === compareDate.getMonth() &&
+      checkOutDate.getDate() === compareDate.getDate();
   };
 
   const getStatusColor = (status: string | undefined, isDragging = false) => {
@@ -114,7 +114,7 @@ export default function Calendario() {
       cleaning: "bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300",
       default: "bg-gray-50 border-gray-200 text-gray-400 dark:bg-gray-800 dark:border-gray-700"
     };
-    
+
     const color = baseColors[status as keyof typeof baseColors] || baseColors.default;
     return isDragging ? `${color} opacity-50 cursor-grabbing` : `${color} cursor-grab`;
   };
@@ -142,25 +142,25 @@ export default function Calendario() {
 
   // Move Confirmation State
   const [pendingMove, setPendingMove] = useState<{
-      reservation: Reservation;
-      newUnit: string;
-      newCheckIn: Date;
-      newCheckOut: Date;
+    reservation: Reservation;
+    newUnit: string;
+    newCheckIn: Date;
+    newCheckOut: Date;
   } | null>(null);
 
   // ... (existing helper functions)
 
   const handleDrop = (e: React.DragEvent, targetUnit: string, targetDate: Date) => {
     e.preventDefault();
-    
+
     if (!draggedReservation) return;
 
     const duration = Math.ceil((draggedReservation.checkOut.getTime() - draggedReservation.checkIn.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     const newCheckIn = new Date(targetDate);
     const newCheckOut = new Date(targetDate);
     newCheckOut.setDate(newCheckOut.getDate() + duration);
-    
+
     // Normalize times to noon
     newCheckIn.setHours(12, 0, 0, 0);
     newCheckOut.setHours(12, 0, 0, 0);
@@ -171,7 +171,7 @@ export default function Calendario() {
       const resEnd = new Date(res.checkOut);
       resStart.setHours(12, 0, 0, 0);
       resEnd.setHours(12, 0, 0, 0);
-      
+
       return (newCheckIn < resEnd && newCheckOut > resStart);
     });
 
@@ -183,26 +183,26 @@ export default function Calendario() {
 
     // Set Pending Move for Confirmation
     setPendingMove({
-        reservation: draggedReservation,
-        newUnit: targetUnit,
-        newCheckIn,
-        newCheckOut
+      reservation: draggedReservation,
+      newUnit: targetUnit,
+      newCheckIn,
+      newCheckOut
     });
 
     setDraggedReservation(null);
   };
 
   const confirmMove = () => {
-      if (!pendingMove) return;
+    if (!pendingMove) return;
 
-      updateReservation({
-        ...pendingMove.reservation,
-        unit: pendingMove.newUnit,
-        checkIn: pendingMove.newCheckIn,
-        checkOut: pendingMove.newCheckOut
-      });
+    updateReservation({
+      ...pendingMove.reservation,
+      unit: pendingMove.newUnit,
+      checkIn: pendingMove.newCheckIn,
+      checkOut: pendingMove.newCheckOut
+    });
 
-      setPendingMove(null);
+    setPendingMove(null);
   };
 
   // ... (existing handlers)
@@ -214,7 +214,7 @@ export default function Calendario() {
     if (!selectedReservation || !splitDate || !splitUnit) return;
 
     const splitDateTime = new Date(splitDate);
-    
+
     if (splitDateTime <= selectedReservation.checkIn || splitDateTime >= selectedReservation.checkOut) {
       alert("⚠️ La fecha de división debe estar dentro del rango de la reserva");
       return;
@@ -244,8 +244,8 @@ export default function Calendario() {
             {UNITS.length} unidades • Arrastra para mover • Click derecho para dividir
           </p>
         </div>
-        
-        <Button 
+
+        <Button
           className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
           onClick={() => router.push('/nueva-reserva')}
         >
@@ -257,29 +257,29 @@ export default function Calendario() {
       {/* Confirmation Dialog for Move */}
       <Dialog open={!!pendingMove} onOpenChange={(open) => !open && setPendingMove(null)}>
         <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Confirmar Movimiento</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                <p>Estás moviendo la reserva de <strong>{pendingMove?.reservation.guestName}</strong>.</p>
-                <div className="grid grid-cols-2 gap-4 text-sm bg-muted p-3 rounded">
-                    <div>
-                        <span className="block text-gray-500 text-xs">Desde:</span>
-                        <div className="font-medium">{pendingMove?.reservation.unit}</div>
-                        <div>{pendingMove?.reservation.checkIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
-                    </div>
-                    <div>
-                        <span className="block text-blue-600 text-xs font-bold">Hacia:</span>
-                        <div className="font-medium text-blue-700">{pendingMove?.newUnit}</div>
-                        <div className="text-blue-700 font-bold">{pendingMove?.newCheckIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
-                    </div>
-                </div>
-                <p className="text-sm text-gray-500">¿Desea guardar estos cambios?</p>
+          <DialogHeader>
+            <DialogTitle>Confirmar Movimiento</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p>Estás moviendo la reserva de <strong>{pendingMove?.reservation.guestName}</strong>.</p>
+            <div className="grid grid-cols-2 gap-4 text-sm bg-muted p-3 rounded">
+              <div>
+                <span className="block text-gray-500 text-xs">Desde:</span>
+                <div className="font-medium">{pendingMove?.reservation.unit}</div>
+                <div>{pendingMove?.reservation.checkIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
+              </div>
+              <div>
+                <span className="block text-blue-600 text-xs font-bold">Hacia:</span>
+                <div className="font-medium text-blue-700">{pendingMove?.newUnit}</div>
+                <div className="text-blue-700 font-bold">{pendingMove?.newCheckIn.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setPendingMove(null)}>Cancelar</Button>
-                <Button onClick={confirmMove} className="bg-blue-600 hover:bg-blue-700">Confirmar Cambios</Button>
-            </div>
+            <p className="text-sm text-gray-500">¿Desea guardar estos cambios?</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPendingMove(null)}>Cancelar</Button>
+            <Button onClick={confirmMove} className="bg-blue-600 hover:bg-blue-700">Confirmar Cambios</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -300,8 +300,8 @@ export default function Calendario() {
               </div>
               <div className="space-y-2">
                 <Label>Fecha de división</Label>
-                <Input 
-                  type="date" 
+                <Input
+                  type="date"
                   value={splitDate}
                   onChange={(e) => setSplitDate(e.target.value)}
                   min={selectedReservation.checkIn.toISOString().split('T')[0]}
@@ -324,7 +324,7 @@ export default function Calendario() {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button 
+                <Button
                   className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
                   onClick={handleSplitReservation}
                   disabled={!splitDate || !splitUnit}
@@ -361,7 +361,7 @@ export default function Calendario() {
 
           <div className="flex items-center gap-3">
             <Filter className="w-4 h-4 text-muted-foreground" />
-            
+
             <Select value={filterComplex} onValueChange={setFilterComplex}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Complejo" />
