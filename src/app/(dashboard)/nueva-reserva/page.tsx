@@ -252,19 +252,53 @@ export default function NuevaReservaPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Fecha de Entrada</Label>
-                  <Input
-                    type="date"
-                    value={checkIn ? format(checkIn, 'yyyy-MM-dd') : ''}
-                    onChange={e => setCheckIn(e.target.value ? new Date(e.target.value) : undefined)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !checkIn && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {checkIn ? format(checkIn, "dd/MM/yyyy", { locale: es }) : <span>Seleccionar fecha</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={checkIn}
+                        onSelect={setCheckIn}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Fecha de Salida</Label>
-                  <Input
-                    type="date"
-                    value={checkOut ? format(checkOut, 'yyyy-MM-dd') : ''}
-                    onChange={e => setCheckOut(e.target.value ? new Date(e.target.value) : undefined)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !checkOut && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {checkOut ? format(checkOut, "dd/MM/yyyy", { locale: es }) : <span>Seleccionar fecha</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={checkOut}
+                        onSelect={setCheckOut}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 

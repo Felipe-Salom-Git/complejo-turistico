@@ -12,13 +12,20 @@ export interface Payment {
   exchangeRate?: number; // Exchange rate used if ARS
 }
 
+export interface ReservationHistoryItem {
+  date: Date;
+  user: string;
+  action: string;
+  details?: string;
+}
+
 export interface Reservation {
   id: string;
   unit: string;
   guestName: string;
   checkIn: Date;
   checkOut: Date;
-  status: "active" | "checkout" | "cleaning";
+  status: "active" | "checkout" | "cleaning" | "cancelled" | "no-show" | "reprogrammed" | "relocated";
   phone?: string;
   email?: string;
   pax?: number;
@@ -38,10 +45,16 @@ export interface Reservation {
   createdAt?: Date;
   createdBy?: string;
 
+  // Advanced Status Fields
+  originalCheckIn?: Date;
+  originalCheckOut?: Date;
+  relocationComplex?: 'Huella Andina' | 'Santa Rita';
+
   // Requested snake_case fields
   balance_usd?: number;
   balance_ars?: number;
   exchangeRate?: number; // Store the rate used for conversion
+  history?: ReservationHistoryItem[];
 }
 
 interface ReservationsContextType {
@@ -84,7 +97,7 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
     if (stored) {
       setReservations(JSON.parse(stored, (key, value) => {
         // Rehydrate dates
-        if (key === 'checkIn' || key === 'checkOut' || key === 'date' || key === 'createdAt') return new Date(value);
+        if (key === 'checkIn' || key === 'checkOut' || key === 'date' || key === 'createdAt' || key === 'originalCheckIn' || key === 'originalCheckOut') return new Date(value);
         return value;
       }));
     } else {
@@ -216,7 +229,7 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
         // Let's assume 'checkout' is the final 'historical' state for this app for now, 
         // or we might need a 'completed' status. Let's use 'checkout' as "Done" for simplicity or add 'completed'.
         // Actually, the type says: "active" | "checkout" | "cleaning".
-        // So flow is: active -> cleaning -> checkOut (Done). Or active -> checkout (Dirty) -> cleaning -> ??
+        // So flow is: active -> checkout (Dirty) -> cleaning -> ??
         // Let's assume standard flow: Active -> (Checkout action) -> Cleaning -> (Cleaned action) -> Archived/Available.
         // But we don't have 'archived'. Let's stick to 'checkout' as the final state.
       }
@@ -233,10 +246,14 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
 
     const occupiedUnits = reservations
       .filter(r => {
+        // Ignore cancelled or non-blocking statuses
+        if (r.status === 'cancelled' || r.status === 'no-show' || r.status === 'relocated') return false;
+
         const rStart = new Date(r.checkIn);
         const rEnd = new Date(r.checkOut);
         // Overlap check
-        return (start < rEnd && end > rStart) && (r.status === 'active' || r.status === 'cleaning');
+        // Also check if status blocks calendar (active, cleaning, reprogrammed)
+        return (start < rEnd && end > rStart) && (r.status === 'active' || r.status === 'cleaning' || r.status === 'reprogrammed' || r.status === 'checkout');
       })
       .map(r => r.unit);
 
