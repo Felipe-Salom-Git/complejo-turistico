@@ -32,7 +32,7 @@ export function AddGeneralStockModal({ title, onSave, triggerLabel, trigger, ini
         if (initialData) {
             setFormData({
                 name: initialData.name,
-                category: initialData.category,
+                category: initialData.category || '',
                 quantity: initialData.quantity,
                 observations: initialData.observations || ''
             });

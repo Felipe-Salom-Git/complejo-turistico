@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { useHandoff, EntryType } from '@/contexts/HandoffContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { AddTicketModal } from '@/components/maintenance/AddTicketModal';
+import { useMaintenance } from '@/contexts/MaintenanceContext';
 import { Badge } from '@/components/ui/badge';
 import { Wrench } from 'lucide-react';
 import { INVENTORY } from '@/contexts/ReservationsContext';
@@ -29,45 +29,37 @@ interface AddEntryModalProps {
 export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
   const { addEntry } = useHandoff();
   const { user } = useAuth();
-  
+  const { addTicket } = useMaintenance();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<EntryType>('info');
   const [unit, setUnit] = useState<string>('none');
-  
-  // Maintenance Ticket Logic
+
+  // Maintenance Logic
   const [createTicket, setCreateTicket] = useState(false);
-  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
-  const [linkedTicketId, setLinkedTicketId] = useState<number | null>(null);
-
-  // Effect: When toggle is checked, open the modal
-  const handleToggleTicket = (checked: boolean) => {
-      setCreateTicket(checked);
-      if (checked) {
-          setShowMaintenanceModal(true);
-      } else {
-          setLinkedTicketId(null);
-      }
-  };
-
-  const handleMaintenanceSuccess = (id: number) => {
-      setLinkedTicketId(id);
-      // Keep "Create Ticket" checked to show visual confirmation
-      setCreateTicket(true);
-  };
-
-  const handleMaintenanceClose = () => {
-      setShowMaintenanceModal(false);
-      // If no ticket was created, uncheck the box
-      if (!linkedTicketId) {
-          setCreateTicket(false);
-      }
-  };
+  const [priority, setPriority] = useState<'urgente' | 'alta' | 'media' | 'baja'>('media');
 
   const handleSubmit = () => {
     if (!title || !description) {
       alert('Por favor complete título y descripción.');
       return;
+    }
+
+    let ticketId: number | undefined = undefined;
+
+    if (createTicket) {
+      ticketId = addTicket({
+        id: 0, // Auto-generated
+        unidad: unit !== 'none' ? unit : 'Sin Unidad',
+        problema: title,
+        descripcion: description,
+        tipo: 'correctivo',
+        prioridad: priority,
+        estado: 'pendiente',
+        fecha: new Date().toISOString().split('T')[0],
+        asignado: ''
+      });
     }
 
     addEntry({
@@ -76,16 +68,16 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
       type,
       unit: unit === 'none' ? undefined : unit,
       createdBy: user?.name || 'Desconocido',
-      ticketId: linkedTicketId || undefined
+      ticketId: ticketId
     });
-    
+
     // Reset and close
     setTitle('');
     setDescription('');
     setType('info');
     setUnit('none');
     setCreateTicket(false);
-    setLinkedTicketId(null);
+    setPriority('media');
     onClose();
   };
 
@@ -95,19 +87,19 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
         <DialogHeader>
           <DialogTitle>Nuevo Evento - Libro de Novedades</DialogTitle>
           <DialogDescription>
-             Registrar evento para el pase de guardia.
+            Registrar evento para el pase de guardia.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          
+
           {/* Read Only Auto-fields */}
           <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 bg-slate-50 p-2 rounded">
-             <div>
-                <span className="font-semibold">Usuario:</span> {user?.name}
-             </div>
-             <div className="text-right">
-                <span className="font-semibold">Fecha:</span> {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
-             </div>
+            <div>
+              <span className="font-semibold">Usuario:</span> {user?.name}
+            </div>
+            <div className="text-right">
+              <span className="font-semibold">Fecha:</span> {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -162,27 +154,41 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
               </SelectContent>
             </Select>
           </div>
-          
-           {/* Maintenance Integration */}
-           <div className="flex flex-col gap-4 border-t pt-4 mt-2">
-                <div className="flex items-center space-x-2">
-                    <Switch 
-                        id="create-ticket" 
-                        checked={createTicket} 
-                        onCheckedChange={handleToggleTicket} 
-                    />
-                    <Label htmlFor="create-ticket" className="cursor-pointer">Generar Ticket de Mantenimiento</Label>
+
+          {/* Maintenance Integration */}
+          <div className="flex flex-col gap-4 border-t pt-4 mt-2">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="create-ticket"
+                checked={createTicket}
+                onCheckedChange={setCreateTicket}
+              />
+              <Label htmlFor="create-ticket" className="cursor-pointer font-medium text-slate-700">Generar Ticket de Mantenimiento</Label>
+            </div>
+
+            {createTicket && (
+              <div className="pl-6 animate-in fade-in slide-in-from-top-1 space-y-3">
+                <div className="space-y-2">
+                  <Label>Prioridad del Ticket</Label>
+                  <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baja">🟢 Baja</SelectItem>
+                      <SelectItem value="media">🟡 Media</SelectItem>
+                      <SelectItem value="alta">🟠 Alta</SelectItem>
+                      <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                
-                {linkedTicketId && (
-                     <div className="pl-6 animate-in fade-in slide-in-from-top-1">
-                        <Badge variant="outline" className="flex items-center gap-2 w-fit bg-green-50 text-green-700 border-green-200">
-                             <Wrench className="w-3 h-3" />
-                             Ticket Linkeado: #{linkedTicketId}
-                        </Badge>
-                     </div>
-                )}
-           </div>
+                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-2">
+                  <Wrench className="w-3 h-3" />
+                  Se creará un ticket automático con la info de arriba
+                </Badge>
+              </div>
+            )}
+          </div>
 
         </div>
         <DialogFooter>
@@ -190,30 +196,10 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
             Cancelar
           </Button>
           <Button onClick={handleSubmit} className="bg-[var(--color-primary)]">
-            Registrar Evento
+            Registrar Evento {createTicket ? '+ Ticket' : ''}
           </Button>
         </DialogFooter>
       </DialogContent>
-      
-      {/* Maintenance Modal (Parallel) */}
-      <AddTicketModal 
-          isOpen={showMaintenanceModal}
-          onClose={handleMaintenanceClose}
-          onSuccess={handleMaintenanceSuccess}
-          // Pre-fill data if available
-          ticketToEdit={{
-              id: 0,
-              unidad: unit !== 'none' ? unit : '',
-              problema: title,
-              descripcion: `Creado desde Pase Diario. ${description}`,
-              tipo: 'correctivo',
-              prioridad: 'media',
-              estado: 'pendiente',
-              fecha: new Date().toISOString().split('T')[0],
-              asignado: ''
-          } as any}
-      />
-
     </Dialog>
   );
 }

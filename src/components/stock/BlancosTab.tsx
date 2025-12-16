@@ -15,31 +15,29 @@ import { useStock } from '@/contexts/StockContext';
 // Removed MOCK_BLANCOS as it is now in Context
 // const MOCK_BLANCOS: BlancoItem[] = ...
 
-const MOCK_LAUNDRY_DAYS: LaundryDay[] = [
-    {
-        id: '1',
-        date: '2023-10-15',
-        items: [
-            { itemName: 'Sábanas Queen', sentQuantity: 10, returnedQuantity: 10 },
-            { itemName: 'Toallas Blancas', sentQuantity: 15, returnedQuantity: 10 }
-        ],
-        timestamp: '2023-10-15T10:00:00Z',
-        user: 'Admin',
-        status: 'Parcial',
-        notes: 'Faltan 5 toallas por devolver'
-    },
-];
+// MOCK_LAUNDRY_DAYS removed, using context
 
 export function BlancosTab() {
-    const { blancos, addBlanco, updateBlanco, deleteBlanco } = useStock();
-    const [laundryDays, setLaundryDays] = useState<LaundryDay[]>(MOCK_LAUNDRY_DAYS);
+    const {
+        blancos, addBlanco, updateBlanco, deleteBlanco,
+        laundryDays, addLaundryDay, updateLaundryDay, deleteLaundryDay
+    } = useStock();
 
     // Detail Modal State
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedDay, setSelectedDay] = useState<LaundryDay | null>(null);
 
-    const handleAddLaundryDay = (newDay: LaundryDay) => {
-        setLaundryDays([newDay, ...laundryDays]);
+    const handleDetailClick = (e: React.MouseEvent, day: LaundryDay) => {
+        e.stopPropagation();
+        handleViewDetail(day);
+    };
+
+    const handleUpdateLaundry = (id: string, updatedRecord: LaundryDay) => {
+        updateLaundryDay(id, updatedRecord);
+    };
+
+    const handleDeleteLaundry = (id: string) => {
+        deleteLaundryDay(id);
     };
 
     const handleViewDetail = (day: LaundryDay) => {
@@ -92,7 +90,7 @@ export function BlancosTab() {
                         <CardTitle>Control de Lavandería (Diario)</CardTitle>
                         <CardDescription>Registro agrupado por día de envío</CardDescription>
                     </div>
-                    <AddLaundryModal onSave={handleAddLaundryDay} />
+                    <AddLaundryModal onSave={addLaundryDay} />
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -117,9 +115,23 @@ export function BlancosTab() {
                                         </TableCell>
                                         <TableCell className="max-w-[200px] truncate">{day.notes || '-'}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewDetail(day); }}>
-                                                <Eye className="w-4 h-4" />
-                                            </Button>
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={(e) => handleDetailClick(e, day)}>
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <AddLaundryModal
+                                                        initialData={day}
+                                                        onSave={(updated) => handleUpdateLaundry(day.id, updated)}
+                                                        onDelete={() => handleDeleteLaundry(day.id)}
+                                                        trigger={
+                                                            <Button variant="ghost" size="icon">
+                                                                <Pencil className="w-4 h-4" />
+                                                            </Button>
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 );

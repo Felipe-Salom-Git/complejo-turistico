@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { FireExtinguisher, GeneralStockItem, MaintenanceItem, BlancoItem, KitchenItem } from '@/types/stock';
+import { FireExtinguisher, GeneralStockItem, MaintenanceItem, BlancoItem, KitchenItem, LaundryDay } from '@/types/stock';
 import { MOCK_MATAFUEGOS, MOCK_MINUTAS, MOCK_LIMPIEZA, MOCK_MANTENIMIENTO, MOCK_BLANCOS, MOCK_SPARE_ITEMS, MOCK_UNIT_ITEMS } from '@/lib/mock-stock';
 
 interface StockContextType {
@@ -39,6 +39,11 @@ interface StockContextType {
     addCocinaUnidad: (item: Omit<KitchenItem, 'id'>) => void;
     updateCocinaUnidad: (id: string, item: Partial<KitchenItem>) => void;
     deleteCocinaUnidad: (id: string) => void;
+
+    laundryDays: LaundryDay[];
+    addLaundryDay: (item: Omit<LaundryDay, 'id'>) => void;
+    updateLaundryDay: (id: string, item: Partial<LaundryDay>) => void;
+    deleteLaundryDay: (id: string) => void;
 }
 
 const StockContext = createContext<StockContextType | undefined>(undefined);
@@ -71,7 +76,24 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
     const [minutas, setMinutas] = useState<GeneralStockItem[]>(MOCK_MINUTAS);
     const [limpieza, setLimpieza] = useState<GeneralStockItem[]>(MOCK_LIMPIEZA);
+
     const [mantenimiento, setMantenimiento] = useState<MaintenanceItem[]>(MOCK_MANTENIMIENTO);
+
+    // Using mock data from BlancosTab originally, but moving here
+    const [laundryDays, setLaundryDays] = useState<LaundryDay[]>([
+        {
+            id: '1',
+            date: '2023-10-15',
+            items: [
+                { itemName: 'Sábanas Queen', sentQuantity: 10, returnedQuantity: 10 },
+                { itemName: 'Toallas Blancas', sentQuantity: 15, returnedQuantity: 10 }
+            ],
+            timestamp: '2023-10-15T10:00:00Z',
+            user: 'Admin',
+            status: 'Parcial',
+            notes: 'Faltan 5 toallas por devolver'
+        },
+    ]);
 
 
     const addMatafuego = (item: Omit<FireExtinguisher, 'id'>) => {
@@ -210,6 +232,23 @@ export function StockProvider({ children }: { children: ReactNode }) {
         setCocinaUnidades((prev) => prev.filter((item) => item.id !== id));
     };
 
+    // --- LAUNDRY DAYS ---
+    const addLaundryDay = (item: Omit<LaundryDay, 'id'>) => {
+        const newItem: LaundryDay = {
+            ...item,
+            id: Math.random().toString(36).substr(2, 9),
+        };
+        setLaundryDays((prev) => [newItem, ...prev]);
+    };
+
+    const updateLaundryDay = (id: string, updatedData: Partial<LaundryDay>) => {
+        setLaundryDays((prev) => prev.map((item) => (item.id === id ? { ...item, ...updatedData } : item)));
+    };
+
+    const deleteLaundryDay = (id: string) => {
+        setLaundryDays((prev) => prev.filter((item) => item.id !== id));
+    };
+
     return (
         <StockContext.Provider value={{
             matafuegos, addMatafuego, updateMatafuego, deleteMatafuego,
@@ -218,7 +257,8 @@ export function StockProvider({ children }: { children: ReactNode }) {
             mantenimiento, addMantenimiento, updateMantenimiento, deleteMantenimiento,
             blancos, addBlanco, updateBlanco, deleteBlanco,
             cocinaRepuestos, addCocinaRepuesto, updateCocinaRepuesto, deleteCocinaRepuesto,
-            cocinaUnidades, addCocinaUnidad, updateCocinaUnidad, deleteCocinaUnidad
+            cocinaUnidades, addCocinaUnidad, updateCocinaUnidad, deleteCocinaUnidad,
+            laundryDays, addLaundryDay, updateLaundryDay, deleteLaundryDay
         }}>
             {children}
         </StockContext.Provider>

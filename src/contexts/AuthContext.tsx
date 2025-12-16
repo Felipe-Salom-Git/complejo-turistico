@@ -2,17 +2,18 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'user' | 'mucama';
 
 export interface User {
   id: string;
   name: string;
   role: UserRole;
+  staffId?: string; // Links to StaffContext ID
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (name: string, role: UserRole) => void;
+  login: (name: string, role: UserRole, staffId?: string) => void;
   logout: () => void;
 }
 
@@ -27,18 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       setUser(JSON.parse(stored));
     } else {
-      // Default mock login for convenience
-      const defaultUser: User = { id: 'u1', name: 'Recepcionista Turno Mañana', role: 'user' };
+      // Default mock login
+      const defaultUser: User = { id: 'u1', name: 'Recepcionista Turno Mañana', role: 'admin' };
       setUser(defaultUser);
-      localStorage.setItem('auth_user', JSON.stringify(defaultUser));
     }
   }, []);
 
-  const login = (name: string, role: UserRole) => {
+  const login = (name: string, role: UserRole, staffId?: string) => {
     const newUser: User = {
       id: `u-${Date.now()}`,
       name,
-      role
+      role,
+      staffId
     };
     setUser(newUser);
     localStorage.setItem('auth_user', JSON.stringify(newUser));

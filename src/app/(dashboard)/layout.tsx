@@ -6,6 +6,8 @@ import { MessagesProvider } from '@/contexts/MessagesContext';
 import { GuestsProvider } from '@/contexts/GuestsContext';
 import { StockProvider } from '@/contexts/StockContext';
 
+import { ServicesProvider } from '@/contexts/ServicesContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { AppShell } from '@/components/AppShell';
 
 export default function DashboardLayout({
@@ -16,17 +18,21 @@ export default function DashboardLayout({
   return (
     <ReservationsProvider>
       <MaintenanceProvider>
-          <StaffProvider>
-            <QuotationsProvider>
-              <GuestsProvider>
-                <MessagesProvider>
+        <StaffProvider>
+          <QuotationsProvider>
+            <GuestsProvider>
+              <MessagesProvider>
+                <NotificationsProvider>
                   <StockProvider>
-                    <AppShell>{children}</AppShell>
+                    <ServicesProvider>
+                      <AppShell>{children}</AppShell>
+                    </ServicesProvider>
                   </StockProvider>
-                </MessagesProvider>
-              </GuestsProvider>
-            </QuotationsProvider>
-          </StaffProvider>
+                </NotificationsProvider>
+              </MessagesProvider>
+            </GuestsProvider>
+          </QuotationsProvider>
+        </StaffProvider>
       </MaintenanceProvider>
     </ReservationsProvider>
   );

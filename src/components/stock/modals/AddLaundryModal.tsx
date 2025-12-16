@@ -10,8 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2 } from 'lucide-react';
 import { LaundryDay, LaundryItem } from '@/types/stock';
 
-interface AddLaundryModalProps {
+export interface AddLaundryModalProps {
     onSave: (record: LaundryDay) => void;
+    initialData?: LaundryDay;
+    onDelete?: () => void;
+    trigger?: React.ReactNode;
 }
 
 const ITEMS_LIST = [
@@ -23,13 +26,13 @@ const ITEMS_LIST = [
     "Repasadores"
 ];
 
-export function AddLaundryModal({ onSave }: AddLaundryModalProps) {
+export function AddLaundryModal({ onSave, initialData, onDelete, trigger }: AddLaundryModalProps) {
     const [open, setOpen] = useState(false);
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [notes, setNotes] = useState('');
-    const [items, setItems] = useState<LaundryItem[]>([
-        { itemName: '', sentQuantity: 0, returnedQuantity: 0 }
-    ]);
+    const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
+    const [notes, setNotes] = useState(initialData?.notes || '');
+    const [items, setItems] = useState<LaundryItem[]>(
+        initialData?.items || [{ itemName: '', sentQuantity: 0, returnedQuantity: 0 }]
+    );
 
     const handleAddItem = () => {
         setItems([...items, { itemName: '', sentQuantity: 0, returnedQuantity: 0 }]);
@@ -61,33 +64,44 @@ export function AddLaundryModal({ onSave }: AddLaundryModalProps) {
         else if (totalReturned > 0) status = 'Parcial';
 
         onSave({
-            id: Math.random().toString(36).substr(2, 9),
+            id: initialData?.id || Math.random().toString(36).substr(2, 9),
             date,
             items: validItems,
             notes,
-            timestamp: new Date().toISOString(),
-            user: 'Admin',
+            timestamp: initialData?.timestamp || new Date().toISOString(),
+            user: initialData?.user || 'Admin',
             status
         });
 
         setOpen(false);
-        // Reset form
-        setDate(new Date().toISOString().split('T')[0]);
-        setNotes('');
-        setItems([{ itemName: '', sentQuantity: 0, returnedQuantity: 0 }]);
+        if (!initialData) {
+            // Reset form only if creating new
+            setDate(new Date().toISOString().split('T')[0]);
+            setNotes('');
+            setItems([{ itemName: '', sentQuantity: 0, returnedQuantity: 0 }]);
+        }
+    };
+
+    const handleDelete = () => {
+        if (onDelete) {
+            onDelete();
+            setOpen(false);
+        }
     };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Registrar Envío Diario
-                </Button>
+                {trigger || (
+                    <Button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Registrar Envío Diario
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Nuevo Envío a Lavandería</DialogTitle>
+                    <DialogTitle>{initialData ? 'Editar Envío a Lavandería' : 'Nuevo Envío a Lavandería'}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
@@ -169,9 +183,16 @@ export function AddLaundryModal({ onSave }: AddLaundryModalProps) {
                         />
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSubmit}>Guardar Envío</Button>
+                <DialogFooter className="flex justify-between sm:justify-between">
+                    {initialData && onDelete ? (
+                        <Button variant="destructive" onClick={handleDelete}>
+                            Eliminar
+                        </Button>
+                    ) : <div></div>}
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleSubmit}>Guardar Envío</Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

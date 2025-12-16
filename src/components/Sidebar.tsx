@@ -17,6 +17,8 @@ import {
   Palette,
   Shield,
   PlusCircle,
+  Brush,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -41,7 +43,9 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
     { id: '/stock', label: 'Stock', icon: Package },
     { id: '/mantenimiento', label: 'Mantenimiento', icon: Wrench },
     { id: '/pase-diario', label: 'Libro Novedades', icon: BookOpen },
-    { id: '/servicio', label: 'Servicio', icon: ClipboardList },
+    { id: '/servicios', label: 'Servicios', icon: ClipboardList },
+    { id: '/mis-servicios', label: 'Mis Servicios', icon: Brush },
+    { id: '/control-servicios', label: 'Control Servicios', icon: ShieldAlert },
     { id: 'separator3', type: 'separator', label: 'Gestión' },
     { id: '/calendario', label: 'Calendario', icon: Calendar },
     { id: '/cotizaciones', label: 'Cotizaciones', icon: FileText },
@@ -93,20 +97,20 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, onNavigate }: Si
 
               const Icon = item.icon!;
               const isActive = currentPage === item.id;
-              
+
               // Handle Feedback or external links
               if (item.id === '/feedback') {
-                 return (
-                    <Button
-                      key={item.id}
-                      variant="ghost"
-                      className={`w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 ${collapsed ? 'px-2' : 'px-3'}`}
-                      onClick={() => window.open('/feedback', '_blank')}
-                    >
-                      <Icon className={`w-5 h-5 ${collapsed ? '' : 'mr-3'}`} />
-                      {!collapsed && <span>{item.label}</span>}
-                    </Button>
-                 )
+                return (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    className={`w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 ${collapsed ? 'px-2' : 'px-3'}`}
+                    onClick={() => window.open('/feedback', '_blank')}
+                  >
+                    <Icon className={`w-5 h-5 ${collapsed ? '' : 'mr-3'}`} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Button>
+                )
               }
 
               return (
