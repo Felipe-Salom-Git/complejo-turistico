@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, Ticket, DollarSign } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Search, Clock, AlertCircle, Wrench, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -14,235 +14,173 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MetricCard } from '@/components/MetricCard';
-import { Users, TrendingUp } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
-import { useDailyPass } from '@/contexts/DailyPassContext';
+import { useHandoff, HandoffEntry } from '@/contexts/HandoffContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { AddEntryModal } from '@/components/pase-diario/AddEntryModal';
+import { AddTicketModal } from '@/components/maintenance/AddTicketModal';
 
 export default function PaseDiario() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { pases } = useDailyPass();
+  
+  // Contexts
+  const { entries, toggleComplete } = useHandoff(); // Operational Log
+  const { user } = useAuth(); // Auth
 
-  const pasesActivos = pases.filter((p) => p.estado === 'activo').length;
-  const totalPersonas = pases.filter((p) => p.estado === 'activo').reduce((acc, p) => acc + p.cantidad, 0);
-  const ingresosDia = pases.reduce((acc, p) => acc + p.total, 0);
+  // State
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  
+  // Maintenance Modal State (for quick creation from entry)
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [maintenanceFromEntry, setMaintenanceFromEntry] = useState<HandoffEntry | null>(null);
+
+  // --- LOGIC FOR HANDOFF ENTRIES (New) ---
+  const pendingCount = entries.filter(e => e.type === 'pending' && !e.completed).length;
+  const adminRequestCount = entries.filter(e => e.type === 'admin_request' && !e.completed).length;
+
+  const getEntryBadge = (type: string) => {
+    switch (type) {
+      case 'info': return <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">ℹ️ Info</Badge>;
+      case 'pending': return <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-200">⏳ Pendiente</Badge>;
+      case 'admin_request': return <Badge variant="destructive">🛑 Admin</Badge>;
+      default: return <Badge>{type}</Badge>;
+    }
+  };
+
+  const handleCreateMaintenance = (entry: HandoffEntry) => {
+      setMaintenanceFromEntry(entry);
+      setIsMaintenanceModalOpen(true);
+  };
+
+  // Prepare ticket data for modal if creating from entry
+  const ticketFromEntry = maintenanceFromEntry ? {
+      id: 0, // Mock ID, modal handles new
+      unidad: maintenanceFromEntry.unit || '',
+      problema: maintenanceFromEntry.title,
+      descripcion: `Generado desde Pase Diario: ${maintenanceFromEntry.description}`,
+      tipo: 'correctivo' as const,
+      prioridad: 'media' as const,
+      estado: 'pendiente' as const,
+      fecha: new Date().toISOString().split('T')[0],
+      asignado: ''
+  } : null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl">Pase Diario</h1>
+          <h1 className="text-3xl font-bold">Libro de Novedades</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Gestión de pases de día y visitantes
+            Registro operativo de turnos y tareas pendientes
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Pase
+        <div className="flex items-center gap-2">
+             <div className="text-sm text-right mr-4 hidden md:block">
+                 <p className="font-semibold">{user?.name}</p>
+                 <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+             </div>
+             <Button onClick={() => setIsEntryModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Entrada
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Nuevo Pase Diario</DialogTitle>
-              <DialogDescription>
-                Complete los datos del pase de día
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Nombre completo</Label>
-                  <Input placeholder="Nombre del visitante" />
-                </div>
-                <div>
-                  <Label>Teléfono</Label>
-                  <Input placeholder="+54 9 11 1234-5678" />
-                </div>
-                <div>
-                  <Label>Cantidad de personas</Label>
-                  <Input type="number" placeholder="0" />
-                </div>
-                <div>
-                  <Label>Tipo de pase</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="adulto">Adulto - $1,500</SelectItem>
-                      <SelectItem value="menor">Menor - $1,000</SelectItem>
-                      <SelectItem value="familiar">
-                        Familiar (4 pax) - $6,000
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Fecha</Label>
-                  <Input type="date" />
-                </div>
-                <div>
-                  <Label>Hora de ingreso</Label>
-                  <Input type="time" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Servicios incluidos</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="outline" className="cursor-pointer">
-                      Pileta
-                    </Badge>
-                    <Badge variant="outline" className="cursor-pointer">
-                      Parrilla
-                    </Badge>
-                    <Badge variant="outline" className="cursor-pointer">
-                      Spa
-                    </Badge>
-                    <Badge variant="outline" className="cursor-pointer">
-                      Deportes
-                    </Badge>
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <Label>Total a cobrar</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end pt-4">
-                <Button variant="outline">Cancelar</Button>
-                <Button className="bg-[var(--color-primary)]">
-                  Generar Pase
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Pases Activos"
-          value={pasesActivos}
-          icon={Ticket}
-          description="En el complejo"
-          color="#2A7B79"
-        />
-        <MetricCard
-          title="Total Personas"
-          value={totalPersonas}
-          icon={Users}
-          description="Visitantes hoy"
-          color="#3B82F6"
-        />
-        <MetricCard
-          title="Ingresos Día"
-          value={`$${ingresosDia.toLocaleString()}`}
-          icon={DollarSign}
-          description="Total del día"
-          trend={{ value: 15, isPositive: true }}
-          color="#10B981"
-        />
-        <MetricCard
-          title="Promedio"
-          value={`$${Math.round(ingresosDia / pases.length).toLocaleString()}`}
-          icon={TrendingUp}
-          description="Por pase"
-          color="#F5B841"
-        />
-      </div>
+       {/* Shift Buckets */}
+       <div className="space-y-6">
+            {['Mañana', 'Tarde', 'Noche'].map(shift => {
+                const shiftEntries = entries.filter(e => e.shift === shift);
+                if (shiftEntries.length === 0) return null;
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Pases del Día</CardTitle>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Buscar pase..."
-                className="pl-9 w-64"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Personas</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Hora</TableHead>
-                <TableHead>Servicios</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pases.map((pase) => (
-                <TableRow key={pase.id}>
-                  <TableCell>#{pase.id}</TableCell>
-                  <TableCell>{pase.nombre}</TableCell>
-                  <TableCell>{pase.cantidad}</TableCell>
-                  <TableCell>{pase.tipo}</TableCell>
-                  <TableCell>{pase.hora}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {pase.servicios.map((servicio) => (
-                        <Badge key={servicio} variant="secondary" className="text-xs">
-                          {servicio}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>${pase.total.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        pase.estado === 'activo' ? 'default' : 'secondary'
-                      }
-                    >
-                      {pase.estado}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline">
-                        Ver
-                      </Button>
-                      {pase.estado === 'activo' && (
-                        <Button size="sm" variant="outline">
-                          Finalizar
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                return (
+                    <Card key={shift}>
+                        <CardHeader className="py-3 bg-slate-50 dark:bg-slate-900 border-b">
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                                <Clock className="w-4 h-4" /> Turno {shift}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[50px]">Hecho</TableHead>
+                                        <TableHead className="w-[120px]">Tipo</TableHead>
+                                        <TableHead>Evento</TableHead>
+                                        <TableHead className="w-[150px]">Unidad</TableHead>
+                                        <TableHead className="w-[150px]">Autor</TableHead>
+                                        <TableHead className="w-[150px]">Hora</TableHead>
+                                        <TableHead className="w-[100px] text-right">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {shiftEntries.map(entry => (
+                                        <TableRow key={entry.id} className={entry.completed ? 'bg-slate-50/50 opacity-60' : ''}>
+                                            <TableCell>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => toggleComplete(entry.id)}
+                                                >
+                                                    {entry.completed ?
+                                                        <CheckSquare className="w-5 h-5 text-green-600" /> :
+                                                        <Square className="w-5 h-5 text-gray-400" />
+                                                    }
+                                                </Button>
+                                            </TableCell>
+                                            <TableCell>{getEntryBadge(entry.type)}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{entry.title}</div>
+                                                <div className="text-xs text-muted-foreground line-clamp-1">{entry.description}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {entry.unit && <Badge variant="outline">{entry.unit}</Badge>}
+                                            </TableCell>
+                                            <TableCell className="text-xs">{entry.createdBy}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {new Date(entry.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {entry.ticketId ? (
+                                                    <Link href="/mantenimiento">
+                                                        <Badge variant="outline" className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 gap-1">
+                                                            <Wrench className="w-3 h-3 text-orange-500" />
+                                                            #{entry.ticketId}
+                                                        </Badge>
+                                                    </Link>
+                                                ) : (
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="ghost" 
+                                                        title="Crear Ticket Mantenimiento"
+                                                        onClick={() => handleCreateMaintenance(entry)}
+                                                    >
+                                                        <Wrench className="w-4 h-4 text-gray-400 hover:text-orange-500 transition-colors" />
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                );
+            })}
+             {entries.length === 0 && <div className="text-center py-10 text-gray-400">No hay novedades registradas hoy.</div>}
+       </div>
+
+      {/* Modals */}
+      <AddEntryModal 
+        isOpen={isEntryModalOpen}
+        onClose={() => setIsEntryModalOpen(false)}
+      />
+
+      <AddTicketModal
+        isOpen={isMaintenanceModalOpen}
+        onClose={() => setIsMaintenanceModalOpen(false)}
+        ticketToEdit={ticketFromEntry} 
+      />
     </div>
   );
 }

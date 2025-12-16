@@ -12,10 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Send, CheckCircle, Calculator, User } from 'lucide-react';
 import { useQuotations, Quotation } from '@/contexts/QuotationsContext';
 import { useReservations } from '@/contexts/ReservationsContext';
+import { useMaintenance } from '@/contexts/MaintenanceContext';
 
 export default function CotizacionesPage() {
     const { quotations, addQuotation, deleteQuotation } = useQuotations();
     const { addReservation, findAvailableUnit } = useReservations();
+    const { tickets } = useMaintenance();
     const [isNewOpen, setIsNewOpen] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
 
@@ -98,7 +100,7 @@ Saludos cordiales.
         if (!selectedQuote) return;
 
         // 1. Find Available Unit based on Type/Name
-        const assignedUnit = findAvailableUnit(selectedQuote.unit, selectedQuote.checkIn, selectedQuote.checkOut);
+        const assignedUnit = findAvailableUnit(selectedQuote.unit, selectedQuote.checkIn, selectedQuote.checkOut, tickets);
 
         if (!assignedUnit) {
             alert(`No hay disponibilidad para unidad tipo "${selectedQuote.unit}" en esas fechas.`);

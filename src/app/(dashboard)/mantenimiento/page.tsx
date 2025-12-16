@@ -24,14 +24,29 @@ import {
 import { MetricCard } from '@/components/MetricCard';
 import { Wrench, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
-import { useMaintenance } from '@/contexts/MaintenanceContext';
+import { useMaintenance, Ticket } from '@/contexts/MaintenanceContext';
+import { AddTicketModal } from '@/components/maintenance/AddTicketModal'; // Importar Modal
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 export default function Mantenimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
   const { tickets } = useMaintenance();
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+
+  const handleCreateNew = () => {
+    setEditingTicket(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setIsModalOpen(true);
+  };
 
   const getPriorityBadge = (prioridad: string) => {
     switch (prioridad) {
@@ -140,7 +155,7 @@ export default function Mantenimiento() {
                 <TableHead>Problema</TableHead>
                 <TableHead>Prioridad</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
+                <TableHead>Fechas</TableHead>
                 <TableHead>Asignado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -157,26 +172,28 @@ export default function Mantenimiento() {
                   <TableRow key={ticket.id}>
                     <TableCell>#{ticket.id}</TableCell>
                     <TableCell>{ticket.unidad}</TableCell>
-                    <TableCell className="max-w-[250px]">
-                      {ticket.problema}
+                    <TableCell className="max-w-[200px]">
+                      <div className="font-medium truncate">{ticket.problema}</div>
+                      {ticket.descripcion && <div className="text-xs text-muted-foreground truncate">{ticket.descripcion}</div>}
                     </TableCell>
                     <TableCell>{getPriorityBadge(ticket.prioridad)}</TableCell>
                     <TableCell>{getStatusBadge(ticket.estado)}</TableCell>
-                    <TableCell>{ticket.fecha}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex flex-col">
+                        <span>Min: {ticket.fechaInicio || ticket.fecha}</span>
+                        {ticket.fechaFin && <span className="text-muted-foreground">Max: {ticket.fechaFin}</span>}
+                      </div>
+                    </TableCell>
                     <TableCell>{ticket.asignado}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="outline">
-                          Ver
+                        <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEdit(ticket)}
+                        >
+                          Ver / Editar
                         </Button>
-                        {ticket.estado !== 'completado' && (
-                          <Button
-                            size="sm"
-                            className="bg-[var(--color-primary)]"
-                          >
-                            Actualizar
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -198,7 +215,7 @@ export default function Mantenimiento() {
             Gestión de tickets y tareas de mantenimiento
           </p>
         </div>
-        <Button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
+        <Button onClick={handleCreateNew} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Ticket
         </Button>
@@ -235,18 +252,7 @@ export default function Mantenimiento() {
         />
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="general">Vista General</TabsTrigger>
-          <TabsTrigger value="julian">Julián Electricista</TabsTrigger>
-        </TabsList>
-        <TabsContent value="general">
-          {renderTable(tickets, "Todos los Tickets")}
-        </TabsContent>
-        <TabsContent value="julian">
-          {renderTable(tickets.filter(t => t.asignado === 'Julián Electricista'), "Tickets de Julián")}
-        </TabsContent>
-      </Tabs>
+{renderTable(tickets, "Todos los Tickets")}
 
       {/* Urgent Alerts section kept as is */}
       {ticketsUrgentes > 0 && (
@@ -271,10 +277,10 @@ export default function Mantenimiento() {
                         <span className="font-semibold">{ticket.unidad}</span> - {ticket.problema}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {ticket.asignado} • {ticket.fecha}
+                        {ticket.asignado} • {ticket.fechaInicio || ticket.fecha}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(ticket)}>
                       Atender Ahora
                     </Button>
                   </div>
@@ -283,6 +289,12 @@ export default function Mantenimiento() {
           </CardContent>
         </Card>
       )}
+
+      <AddTicketModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        ticketToEdit={editingTicket}
+      />
     </div>
   );
 }

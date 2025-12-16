@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from './providers/ThemeProvider';
-import { AppShell } from '@/components/AppShell';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { HandoffProvider } from '@/contexts/HandoffContext';
+import { DailyPassProvider } from '@/contexts/DailyPassContext';
 
 export const metadata: Metadata = {
   title: 'Las Gaviotas & Fontana - Sistema de Gestión',
@@ -17,7 +19,13 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <AppShell>{children}</AppShell>
+          <AuthProvider>
+            <HandoffProvider>
+              <DailyPassProvider>
+                {children}
+              </DailyPassProvider>
+            </HandoffProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

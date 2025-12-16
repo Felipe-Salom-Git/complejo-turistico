@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Filter, Split, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Filter, Split, X, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useReservations, Reservation, UNIT_GROUPS } from "@/contexts/ReservationsContext";
+import { useMaintenance } from "@/contexts/MaintenanceContext";
 import { useRouter } from "next/navigation";
 
 // Generate UNITS from UNIT_GROUPS shared with Context
@@ -24,7 +25,7 @@ const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) =>
     let type = "Estándar";
     let complex = "Las Gaviotas";
 
-    if (groupName.includes("Tipo A")) type = "Cabaña"; // Mapping approximation
+    if (groupName.includes("Tipo A")) type = "Cabaña";
     else if (groupName.includes("Tipo B")) type = "Cabaña";
     else if (groupName.includes("Tipo C")) type = "Cabaña";
     else if (groupName.includes("Fontana")) {
@@ -32,14 +33,10 @@ const UNITS = Object.entries(UNIT_GROUPS).flatMap(([groupName, units]) =>
       type = "Apartamento";
     }
 
-    // Preserve the group name as type for detailed view or filter?
-    // The previous implementation used "Cabaña", "Apartamento".
-    // Let's use the group name as the "Detailed Type" but map to broad types for filters if needed.
-    // For now, let's just use the Group Name as Type to be precise as user requested.
     type = groupName;
 
     return {
-      id: unitName, // use name as ID to be safe or unique string
+      id: unitName,
       name: unitName,
       type: type,
       complex: complex
@@ -57,7 +54,8 @@ const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 export default function Calendario() {
   const router = useRouter();
   const { reservations, updateReservation, splitReservation } = useReservations();
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 11, 1)); // December 2025
+  const { tickets } = useMaintenance();
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 11, 1));
   const [filterType, setFilterType] = useState<string>("all");
   const [filterComplex, setFilterComplex] = useState<string>("all");
   const [draggedReservation, setDraggedReservation] = useState<Reservation | null>(null);
@@ -96,6 +94,25 @@ export default function Calendario() {
       const checkIn = new Date(res.checkIn.getFullYear(), res.checkIn.getMonth(), res.checkIn.getDate());
       const checkOut = new Date(res.checkOut.getFullYear(), res.checkOut.getMonth(), res.checkOut.getDate());
       return dateOnly >= checkIn && dateOnly < checkOut;
+    });
+  };
+
+  // Helper for Maintenance
+  const getMaintenanceForUnitAndDate = (unitName: string, date: Date) => {
+    return tickets.find((ticket) => {
+      if (ticket.unidad !== unitName) return false;
+      if (ticket.estado === 'completado') return false; 
+
+      // Maintenance Date Range Logic
+      const ticketStart = new Date(ticket.fechaInicio || ticket.fecha);
+      const ticketEnd = ticket.fechaFin ? new Date(ticket.fechaFin) : new Date(ticketStart);
+      
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const checkIn = new Date(ticketStart.getFullYear(), ticketStart.getMonth(), ticketStart.getDate());
+      const checkOut = new Date(ticketEnd.getFullYear(), ticketEnd.getMonth(), ticketEnd.getDate());
+
+      // Inclusive logic
+      return dateOnly >= checkIn && dateOnly <= checkOut;
     });
   };
 
@@ -148,8 +165,6 @@ export default function Calendario() {
     newCheckOut: Date;
   } | null>(null);
 
-  // ... (existing helper functions)
-
   const handleDrop = (e: React.DragEvent, targetUnit: string, targetDate: Date) => {
     e.preventDefault();
 
@@ -181,6 +196,22 @@ export default function Calendario() {
       return;
     }
 
+    // Check maintenance conflict
+    const hasMaintenanceConflict = tickets.some(t => {
+        if(t.unidad !== targetUnit || t.estado === 'completado') return false;
+        const tStart = new Date(t.fechaInicio || t.fecha);
+        const tEnd = t.fechaFin ? new Date(t.fechaFin) : new Date(tStart);
+        // Overlap logic
+        return (newCheckIn <= tEnd && newCheckOut >= tStart);
+    });
+
+    if (hasMaintenanceConflict) {
+        if(!confirm("⚠️ Hay un mantenimiento programado en estas fechas. ¿Desea mover la reserva de todos modos?")) {
+            setDraggedReservation(null);
+            return;
+        }
+    }
+
     // Set Pending Move for Confirmation
     setPendingMove({
       reservation: draggedReservation,
@@ -205,11 +236,7 @@ export default function Calendario() {
     setPendingMove(null);
   };
 
-  // ... (existing handlers)
-
-
-
-  // Split reservation
+  // Split reservation logic
   const handleSplitReservation = () => {
     if (!selectedReservation || !splitDate || !splitUnit) return;
 
@@ -358,10 +385,9 @@ export default function Calendario() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-
+          {/* Filters */}
           <div className="flex items-center gap-3">
             <Filter className="w-4 h-4 text-muted-foreground" />
-
             <Select value={filterComplex} onValueChange={setFilterComplex}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Complejo" />
@@ -401,7 +427,13 @@ export default function Calendario() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300 dark:bg-amber-900/30 dark:border-amber-700"></div>
-          <span className="text-sm">Limpieza (cada 3 días)</span>
+          <span className="text-sm">Limpieza</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-red-100 border border-red-300 dark:bg-red-900/30 dark:border-red-700 flex items-center justify-center">
+                <Wrench className="w-2 h-2 text-red-600" />
+            </div>
+            <span className="text-sm">Mantenimiento</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:border-gray-700"></div>
@@ -428,7 +460,7 @@ export default function Calendario() {
 
             {/* Unit Rows */}
             {filteredUnits.map((unit) => (
-              <div key={unit.id} className="flex border-b last:border-b-0">
+              <div key={unit.id} className="flex border-b last:border-b-0 h-[80px]">
                 <div className="w-32 flex-shrink-0 p-3 border-r bg-muted/30">
                   <div className="font-medium text-sm">{unit.name}</div>
                   <div className="text-xs text-muted-foreground">{unit.type}</div>
@@ -436,12 +468,13 @@ export default function Calendario() {
                 </div>
                 {days.map((day, index) => {
                   const reservation = getReservationForUnitAndDate(unit.name, day);
+                  const maintenance = getMaintenanceForUnitAndDate(unit.name, day);
                   const isCheckout = reservation && isCheckoutDay(reservation, day);
 
                   return (
                     <div
                       key={index}
-                      className="w-28 flex-shrink-0 p-2 border-r last:border-r-0"
+                      className="w-28 flex-shrink-0 p-1 border-r last:border-r-0 relative group"
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, unit.name, day)}
                     >
@@ -456,21 +489,36 @@ export default function Calendario() {
                               setSplitDialogOpen(true);
                             }
                           }}
-                          className={`h-full min-h-[60px] p-2 rounded-lg border ${getStatusColor(
+                          className={`h-full p-2 rounded-lg border ${getStatusColor(
                             isCheckout ? "checkout" : reservation.status,
                             draggedReservation?.id === reservation.id
-                          )} transition-all hover:shadow-md ${reservation.status !== "cleaning" ? "active:cursor-grabbing" : ""}`}
+                          )} transition-all hover:shadow-md relative overflow-hidden`}
                           title={reservation.status !== "cleaning" ? "Arrastra para mover • Click derecho para dividir" : "Limpieza automática"}
                         >
                           <div className="text-xs font-medium truncate">
                             {reservation.guestName}
                           </div>
-                          <Badge variant="secondary" className="mt-1 text-xs bg-white/60 dark:bg-black/20 border-0">
+                          <Badge variant="secondary" className="mt-1 text-xs bg-white/60 dark:bg-black/20 border-0 scale-90 origin-left">
                             {getStatusLabel(isCheckout ? "checkout" : reservation.status)}
                           </Badge>
+                          {/* Maintenance Indicator if Overlap */}
+                          {maintenance && (
+                              <div className="absolute top-0 right-0 p-1 bg-red-500/80 text-white rounded-bl-md" title={`Mantenimiento: ${maintenance.problema}`}>
+                                  <Wrench className="w-3 h-3" />
+                              </div>
+                          )}
                         </div>
+                      ) : maintenance ? (
+                         // Maintenance Block (No Reservation)
+                         <div 
+                            className="h-full p-2 rounded-lg border bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 flex flex-col justify-center items-center gap-1 cursor-help"
+                            title={`Mantenimiento: ${maintenance.problema}\n${maintenance.descripcion || ''}`}
+                         >
+                             <Wrench className="w-4 h-4" />
+                             <span className="text-[10px] font-medium text-center leading-tight line-clamp-2">{maintenance.problema}</span>
+                         </div>
                       ) : (
-                        <div className="h-full min-h-[60px] rounded-lg border border-dashed border-gray-200 dark:border-gray-700 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all"></div>
+                        <div className="h-full rounded-lg border border-dashed border-gray-200 dark:border-gray-700 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all"></div>
                       )}
                     </div>
                   );
@@ -502,14 +550,11 @@ export default function Calendario() {
             }).length}
           </div>
         </Card>
-        <Card className="p-4 bg-amber-50 dark:bg-amber-950/30">
-          <div className="text-sm text-amber-700 dark:text-amber-400">Limpiezas Hoy</div>
-          <div className="text-2xl font-bold text-amber-900 dark:text-amber-300 mt-1">
-            {reservations.filter((r) => {
-              const today = new Date();
-              return r.status === "cleaning" && isCheckoutDay(r, today);
-            }).length}
-          </div>
+        <Card className="p-4 bg-red-50 dark:bg-red-950/30">
+            <div className="text-sm text-red-700 dark:text-red-400">Mantenimiento</div>
+            <div className="text-2xl font-bold text-red-900 dark:text-red-300 mt-1">
+                {tickets.filter(t => t.estado === 'en-proceso' || t.estado === 'pendiente').length}
+            </div>
         </Card>
         <Card className="p-4 bg-gray-50 dark:bg-gray-900/50">
           <div className="text-sm text-muted-foreground">Disponibles</div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Ticket } from '@/contexts/MaintenanceContext';
 
 export interface Payment {
   id: string;
@@ -79,7 +80,7 @@ interface ReservationsContextType {
   checkIn: (id: string, arrivalTime?: string) => void;
   checkOut: (id: string) => void;
   finishCleaning: (id: string) => void;
-  findAvailableUnit: (requestedType: string, checkIn: Date, checkOut: Date) => string | null;
+  findAvailableUnit: (requestedType: string, checkIn: Date, checkOut: Date, maintenanceTickets?: Ticket[]) => string | null;
   deleteReservation: (id: string) => void;
   clearAllReservations: () => void;
 }
@@ -100,8 +101,7 @@ export const INVENTORY = Object.values(UNIT_GROUPS).flat();
 
 export function ReservationsProvider({ children }: { children: React.ReactNode }) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  // ...
-
+  
   // Initialize with localStorage or mock data
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -261,10 +261,24 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
    * 3. Verificar grupo de unidades (e.g. "Tipo A").
    * 4. Fallback por prefijo.
    */
-  const findAvailableUnit = (requestedType: string, checkIn: Date, checkOut: Date): string | null => {
+  const findAvailableUnit = (requestedType: string, checkIn: Date, checkOut: Date, maintenanceTickets?: Ticket[]): string | null => {
     // 1. Identificar unidades ocupadas en el rango asignado
     const start = new Date(checkIn);
     const end = new Date(checkOut);
+
+    // 0. Filtrar por Mantenimiento si se provee la lista
+    const maintenanceBlockedUnits = maintenanceTickets
+      ? maintenanceTickets
+          .filter((t) => {
+            if (t.estado === 'completado') return false;
+            const tStart = new Date(t.fechaInicio || t.fecha);
+            const tEnd = t.fechaFin ? new Date(t.fechaFin) : new Date(tStart);
+            
+            // Check overlap
+            return (start < tEnd && end > tStart);
+          })
+          .map((t) => t.unidad)
+      : [];
 
     const occupiedUnits = reservations
       .filter(r => {
@@ -279,9 +293,12 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
         return (start < rEnd && end > rStart) && (r.status === 'active' || r.status === 'cleaning' || r.status === 'reprogrammed' || r.status === 'checkout');
       })
       .map(r => r.unit);
+    
+    // Merge blocked lists
+    const allBlockedUnits = [...new Set([...occupiedUnits, ...maintenanceBlockedUnits])];
 
     // 2. Helper para chequear disponibilidad
-    const isAvailable = (u: string) => !occupiedUnits.includes(u);
+    const isAvailable = (u: string) => !allBlockedUnits.includes(u);
 
     // 3. Estrategia de Coincidencia Exacta
     // Si requestedType es una unidad específica (ej. "LG-2")

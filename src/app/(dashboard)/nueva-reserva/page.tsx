@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { CalendarIcon, User, Home, CreditCard, Save, Check } from "lucide-react";
 import { useReservations, UNIT_GROUPS, Reservation } from "@/contexts/ReservationsContext";
 import { useGuests } from "@/contexts/GuestsContext";
+import { useMaintenance } from "@/contexts/MaintenanceContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar"; // Assuming standard shadcn calendar
@@ -29,6 +30,7 @@ export default function NuevaReservaPage() {
   const router = useRouter();
   const { addReservation, findAvailableUnit } = useReservations();
   const { addGuest } = useGuests();
+  const { tickets } = useMaintenance();
 
   // Form State
   const [guestName, setGuestName] = useState("");
@@ -109,7 +111,7 @@ export default function NuevaReservaPage() {
       return;
     }
 
-    const finalUnit = findAvailableUnit(selectedUnit, checkIn, checkOut);
+    const finalUnit = findAvailableUnit(selectedUnit, checkIn, checkOut, tickets);
 
     if (!finalUnit) {
       alert("⚠️ No hay disponibilidad para el tipo de unidad seleccionado en estas fechas.");
