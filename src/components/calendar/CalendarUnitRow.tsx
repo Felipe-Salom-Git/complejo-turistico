@@ -42,7 +42,7 @@ export function CalendarUnitRow({ unit, days, reservations, tickets, onDragStart
     };
 
     return (
-        <div className="flex border-b last:border-b-0 h-[80px]">
+        <div className="flex border-b last:border-b-0 h-[60px]">
             {/* Sticky Unit Column */}
             <div className="w-32 flex-shrink-0 p-3 border-r bg-background sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                 <div className="font-bold text-lg">{unit.name}</div>

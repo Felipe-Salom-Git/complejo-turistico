@@ -69,6 +69,15 @@ export interface Reservation {
   balance_usd?: number;
   balance_ars?: number;
   exchangeRate?: number; // Tipo de cambio al momento de la reserva
+  
+  // Nuevos campos de Nacionalidad y Moneda
+  nacionalidadTipo?: 'ARGENTINO' | 'EXTRANJERO';
+  nacionalidad?: string;
+  tipoCambioFuente?: 'BNA_VENTA' | 'PAYWAY_TURISTA';
+  montoARS?: number; // Monto total en ARS congelado al momento.
+  montoUSD?: number; // Alias de totalUSD o stored explicitly.
+  fechaTipoCambio?: Date;
+
   history?: ReservationHistoryItem[];
 }
 

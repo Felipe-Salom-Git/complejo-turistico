@@ -30,11 +30,26 @@ export const generateMonthDays = (baseDate: Date): Date[] => {
     // but plan said "30 days of the month"). 
     // Let's stick to "Month View" concept, listing all days of the selected month.
     // Spec: "Mostrar siempre los 30 días del mes". 
-    // So distinct from "next 14 days". Let's generate days for the *entire* current month.
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     for (let i = 1; i <= daysInMonth; i++) {
         days.push(new Date(year, month, i));
+    }
+    return days;
+};
+
+export const generateDaysRange = (from: Date, to: Date): Date[] => {
+    const days = [];
+    const current = new Date(from);
+    // Normalize start to midnight
+    current.setHours(0, 0, 0, 0);
+
+    const end = new Date(to);
+    end.setHours(0, 0, 0, 0);
+
+    while (current <= end) {
+        days.push(new Date(current));
+        current.setDate(current.getDate() + 1);
     }
     return days;
 };
@@ -46,7 +61,6 @@ export interface CleaningTask {
     type: 'toallas' | 'completo';
     unit: string;
 }
-
 export const getCleaningTasks = (reservation: Reservation): CleaningTask[] => {
     const cleanings: CleaningTask[] = [];
     const start = new Date(reservation.checkIn);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Split, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Split, X, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,39 +11,60 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComp } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useReservations, Reservation } from "@/contexts/ReservationsContext";
 import { useMaintenance } from "@/contexts/MaintenanceContext";
 import { useRouter } from "next/navigation";
-import { getAllUnits, generateMonthDays } from "@/lib/calendar-logic";
+import { DateRange } from "react-day-picker";
+import { getAllUnits, generateDaysRange } from "@/lib/calendar-logic";
 import { CalendarTabs } from "@/components/calendar/CalendarTabs";
+import { es } from "date-fns/locale";
 
-const MONTHS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
+// ... constants ...
 
 export default function Calendario() {
   const router = useRouter();
   const { reservations, updateReservation, splitReservation } = useReservations();
   const { tickets } = useMaintenance();
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 11, 1)); // Dec 2025 default per mock
+  // Initialize with current month range
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: firstDay,
+    to: lastDay,
+  });
+
   const [draggedReservation, setDraggedReservation] = useState<Reservation | null>(null);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
-
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [splitDate, setSplitDate] = useState<string>("");
   const [splitUnit, setSplitUnit] = useState<string>("");
 
   const UNITS = getAllUnits();
-  const days = generateMonthDays(currentDate);
+  
+  // Robust days generation
+  const days = dateRange?.from && dateRange?.to 
+    ? generateDaysRange(dateRange.from, dateRange.to) 
+    : [];
 
   const navigateMonth = (direction: "prev" | "next") => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(currentDate.getMonth() + (direction === "next" ? 1 : -1));
-    setCurrentDate(newDate);
+    if (!dateRange?.from) return;
+    
+    // Snap to the 1st of the next/prev month
+    const currentMonth = dateRange.from.getMonth();
+    const currentYear = dateRange.from.getFullYear();
+    const targetDate = new Date(currentYear, currentMonth + (direction === "next" ? 1 : -1), 1);
+    
+    const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    
+    setDateRange({ from: firstDay, to: lastDay });
   };
 
   // Drag & Drop Handlers
@@ -129,7 +150,7 @@ export default function Calendario() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -137,17 +158,49 @@ export default function Calendario() {
           <p className="text-muted-foreground">{UNITS.length} unidades disponibles</p>
         </div>
         <div className="flex items-center gap-4">
+          
+          {/* Month Navigation */}
           <div className="flex items-center gap-2 bg-white p-1 rounded-md border shadow-sm">
             <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <div className="min-w-[140px] text-center font-bold">
-              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </div>
+            <span className="min-w-[100px] text-center font-bold text-sm">
+               {dateRange?.from ? dateRange.from.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }) : 'Seleccionar'}
+            </span>
             <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")}>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Date Range Picker */}
+          <div className="flex items-center gap-2 bg-white p-1 rounded-md border shadow-sm">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className="min-w-[40px] px-2 font-normal text-muted-foreground hover:text-foreground">
+                   <CalendarIcon className="w-4 h-4 mr-2" />
+                   {dateRange?.from && dateRange?.to ? (
+                      <span className="text-xs text-black font-semibold">
+                         {dateRange.from.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                         {" - "}
+                         {dateRange.to.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                   ) : "Rango"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarComp
+                  locale={es}
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <Button className="bg-[var(--color-primary)] text-white" onClick={() => router.push('/nueva-reserva')}>
             <Plus className="w-4 h-4 mr-2" /> Nueva
           </Button>

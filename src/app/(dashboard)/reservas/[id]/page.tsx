@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { fetchExchangeRates, ExchangeRates } from "@/lib/currency";
 import { useParams, useRouter } from 'next/navigation';
 import { useReservations, Reservation, ReservationHistoryItem, Payment } from '@/contexts/ReservationsContext';
 import { useMessages } from '@/contexts/MessagesContext';
@@ -52,6 +53,41 @@ export default function ReservationDetailsPage() {
   // Relocation State
   const [relocationOpen, setRelocationOpen] = useState(false);
   const [targetComplex, setTargetComplex] = useState<'Huella Andina' | 'Santa Rita'>('Huella Andina');
+
+  // Rates State
+  const [rates, setRates] = useState<ExchangeRates>({ BNA: 0, PAYWAY: 0 });
+
+  useEffect(() => {
+    fetchExchangeRates().then(setRates);
+  }, []);
+
+  // Update Exchange Rate in Edit Mode when Nationality Changes
+  useEffect(() => {
+    if (isEditing && editValues) {
+        if (editValues.nacionalidadTipo === 'ARGENTINO') {
+            // Apply BNA if not already set or if user wants auto-update (we assume auto-update on type change for now)
+            // But we must be careful not to overwrite manual edits if we allow them. 
+            // For now, valid logic: Type change -> Update Rate.
+            if (editValues.tipoCambioFuente !== 'BNA_VENTA') {
+                 setEditValues(prev => prev ? ({ 
+                    ...prev, 
+                    tipoCambioFuente: 'BNA_VENTA', 
+                    exchangeRate: rates.BNA,
+                    montoARS: (prev.totalUSD || 0) * rates.BNA 
+                 }) : null);
+            }
+        } else if (editValues.nacionalidadTipo === 'EXTRANJERO') {
+             if (editValues.tipoCambioFuente !== 'PAYWAY_TURISTA') {
+                 setEditValues(prev => prev ? ({ 
+                    ...prev, 
+                    tipoCambioFuente: 'PAYWAY_TURISTA', 
+                    exchangeRate: rates.PAYWAY,
+                    montoARS: (prev.totalUSD || 0) * rates.PAYWAY 
+                 }) : null);
+            }
+        }
+    }
+  }, [editValues?.nacionalidadTipo, isEditing, rates]);
 
   // Sync editValues with reservation
   useEffect(() => {
@@ -374,20 +410,66 @@ export default function ReservationDetailsPage() {
                         <Input value={editValues.phone || ''} onChange={e => setEditValues({ ...editValues, phone: e.target.value })} className="mt-1" />
                       </div>
                     </div>
+                  
+                  {/* Nationality Edit Section */}
+                  <div className="pt-4 border-t mt-4 grid grid-cols-2 gap-4">
+                     <div>
+                        <Label>Nacionalidad</Label>
+                        <Select
+                            value={editValues.nacionalidadTipo || "ARGENTINO"}
+                            onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setEditValues({ ...editValues, nacionalidadTipo: v })}
+                        >
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
+                                <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
+                            </SelectContent>
+                        </Select>
+                     </div>
+                     {editValues.nacionalidadTipo === 'EXTRANJERO' && (
+                         <div>
+                            <Label>País</Label>
+                             <Select 
+                                value={editValues.nacionalidad || ""} 
+                                onValueChange={(v) => setEditValues({...editValues, nacionalidad: v})}
+                             >
+                                <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
+                                    <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
+                                    <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
+                                    <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
+                                    <SelectItem value="España">España 🇪🇸</SelectItem>
+                                    <SelectItem value="Otro">Otro</SelectItem>
+                                </SelectContent>
+                            </Select>
+                         </div>
+                     )}
+                  </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
-                      {reservation.guestName.charAt(0)}
+                  <>
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
+                        {reservation.guestName.charAt(0)}
+                        </div>
+                        <div>
+                        <p className="font-bold text-lg">{reservation.guestName}</p>
+                        <div className="flex flex-col text-sm text-muted-foreground">
+                            <span>{reservation.email || 'Sin email'}</span>
+                            <span>{reservation.phone || 'Sin teléfono'}</span>
+                        </div>
+                        </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-lg">{reservation.guestName}</p>
-                      <div className="flex flex-col text-sm text-muted-foreground">
-                        <span>{reservation.email || 'Sin email'}</span>
-                        <span>{reservation.phone || 'Sin teléfono'}</span>
-                      </div>
+                    {/* View Mode Nationality */}
+                    <div className="mt-2 pl-16">
+                            <Badge variant="secondary" className="mr-2 text-xs">
+                                {reservation.nacionalidadTipo === 'ARGENTINO' ? '🇦🇷 Argentino' : `🌎 ${reservation.nacionalidad || 'Extranjero'}`}
+                            </Badge>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -611,7 +693,14 @@ export default function ReservationDetailsPage() {
                     <span className="text-xs uppercase font-bold text-gray-500">Saldo estimado en Pesos</span>
                     <div className="text-right">
                       <span className="font-mono text-xl text-gray-800 font-bold block">ARS $ {((reservation.balance_usd || getBalanceUSD(reservation)) * (reservation.exchangeRate || exchangeRate || 0)).toLocaleString()}</span>
-                      <span className="text-[10px] text-gray-400">Cotización Ref: ${reservation.exchangeRate || exchangeRate || 0}</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-gray-400">
+                            Cotización: ${reservation.exchangeRate || exchangeRate || 0} 
+                        </span>
+                        <span className="text-[9px] text-emerald-600 font-bold uppercase">
+                            {reservation.tipoCambioFuente === 'BNA_VENTA' ? 'Dólar BNA' : reservation.tipoCambioFuente === 'PAYWAY_TURISTA' ? 'Payway / MEP' : 'Manual'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

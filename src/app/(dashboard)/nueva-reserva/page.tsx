@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/components/ui/utils";
 import { Badge } from "@/components/ui/badge";
+import { fetchExchangeRates, ExchangeRates } from "@/lib/currency";
 
 export default function NuevaReservaPage() {
   const router = useRouter();
@@ -49,28 +50,36 @@ export default function NuevaReservaPage() {
   const [petCharged, setPetCharged] = useState(false);
 
   const [manualBasePrice, setManualBasePrice] = useState<string>("");
-  // Removed explicit pricePerNightUSD state as detailed breakdown logic is now simpler (manual base + pet fee)
-
+  
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");
   const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'ARS'>("USD");
   const [exchangeRate, setExchangeRate] = useState(0);
 
-  // Fetch BNA rate on mount
+  // Currency State
+  const [rates, setRates] = useState<ExchangeRates>({ BNA: 0, PAYWAY: 0 });
+  
+  // Nationality State
+  const [nationalityType, setNationalityType] = useState<"ARGENTINO" | "EXTRANJERO">("ARGENTINO");
+  const [nationalityCountry, setNationalityCountry] = useState("");
+
+  // Fetch Rates on Mount
   useEffect(() => {
-    fetch('https://dolarapi.com/v1/dolares/oficial')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.venta) {
-          setExchangeRate(data.venta);
-        }
-      })
-      .catch(err => console.error("Error fetching BNA rate:", err));
+    fetchExchangeRates().then(data => {
+        setRates(data);
+        // Set initial exchange rate based on default nationality (ARGENTINO -> BNA)
+        setExchangeRate(data.BNA); 
+    });
   }, []);
 
-  // Guest search state removed as requested
-  // Keeping clean state for render
-
+  // Update Exchange Rate when Nationality changes
+  useEffect(() => {
+    if (nationalityType === 'ARGENTINO') {
+        setExchangeRate(rates.BNA);
+    } else {
+        setExchangeRate(rates.PAYWAY);
+    }
+  }, [nationalityType, rates]);
 
   // Calculations
   const nights = checkIn && checkOut
@@ -78,12 +87,9 @@ export default function NuevaReservaPage() {
     : 0;
 
   // Cálculos Financieros
-  // Se prioriza el valor manual base y se suma el recargo de mascota si corresponde.
   const petFeeTotal = (hasPet && petCharged) ? (nights * 10) : 0;
   const baseValue = parseFloat(manualBasePrice || "0");
   const finalTotalUSD = baseValue + petFeeTotal;
-
-
 
   // Normalización de pagos a USD para cálculo de saldo
   const totalPaidUSD = paymentCurrency === 'USD'
@@ -96,6 +102,7 @@ export default function NuevaReservaPage() {
   useEffect(() => {
     if (cancellationPolicy === 'Prepaga') {
       setPaymentAmount(finalTotalUSD.toString());
+      setPaymentCurrency('USD'); 
     }
   }, [cancellationPolicy, finalTotalUSD]);
 
@@ -118,7 +125,6 @@ export default function NuevaReservaPage() {
       return;
     }
 
-    // Always create new guest for this flow as requested (no search)
     const newGuestId = `G-${Date.now()}`;
     addGuest({
       id: newGuestId,
@@ -129,7 +135,8 @@ export default function NuevaReservaPage() {
       phone: phone,
       address: "",
       city: "",
-      country: "",
+      country: nationalityType === 'ARGENTINO' ? 'Argentina' : nationalityCountry,
+      // Pass nationality to guest as well if we added fields there, otherwise country is close enough fallback
       reservationsCount: 1,
       lastVisit: new Date().toISOString().split('T')[0],
       notes: "Creado desde Nueva Reserva Simple"
@@ -137,7 +144,7 @@ export default function NuevaReservaPage() {
 
     const newReservation: Reservation = {
       id: `RES-${Date.now()}`,
-      unit: finalUnit, // Use the assigned unit
+      unit: finalUnit,
       guestName: guestName,
       checkIn: checkIn,
       checkOut: checkOut,
@@ -147,7 +154,7 @@ export default function NuevaReservaPage() {
       pax: parseInt(pax),
       totalUSD: finalTotalUSD,
       amountPaidUSD: totalPaidUSD,
-      amountPaid: parseFloat(paymentAmount || "0"), // Legacy
+      amountPaid: parseFloat(paymentAmount || "0"),
       payments: parseFloat(paymentAmount) > 0 ? [{
         id: Date.now().toString(),
         date: new Date(),
@@ -166,15 +173,20 @@ export default function NuevaReservaPage() {
       createdAt: new Date(),
       createdBy: "Admin Principal",
 
-      // Snake case fields as requested
-      // Note: payments is conditionally populated above, or [] if empty.
+      // New Fields
+      nacionalidadTipo: nationalityType,
+      nacionalidad: nationalityType === 'EXTRANJERO' ? nationalityCountry : 'Argentina',
+      tipoCambioFuente: nationalityType === 'ARGENTINO' ? 'BNA_VENTA' : 'PAYWAY_TURISTA',
+      montoUSD: finalTotalUSD,
+      montoARS: finalTotalUSD * (exchangeRate || 0),
+      fechaTipoCambio: new Date(),
+      exchangeRate: exchangeRate,
       balance_usd: balanceUSD,
       balance_ars: balanceUSD * (exchangeRate || 0),
-      exchangeRate: exchangeRate
     };
 
     addReservation(newReservation);
-    router.push('/calendario'); // Or /reservas
+    router.push('/calendario');
   };
 
   return (
@@ -240,6 +252,40 @@ export default function NuevaReservaPage() {
                 </div>
               </div>
 
+               {/* NEW Nationality Section */}
+               <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
+                    <div>
+                        <Label>Nacionalidad (Define Moneda)</Label>
+                         <Select value={nationalityType} onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setNationalityType(v)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
+                                <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    
+                    {nationalityType === 'EXTRANJERO' && (
+                        <div className="animate-in fade-in">
+                            <Label>País de Origen</Label>
+                             <Select value={nationalityCountry} onValueChange={setNationalityCountry}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar país..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
+                                    <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
+                                    <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
+                                    <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
+                                    <SelectItem value="España">España 🇪🇸</SelectItem>
+                                    <SelectItem value="Otro">Otro</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                 </div>
 
             </CardContent>
           </Card>
@@ -407,7 +453,7 @@ export default function NuevaReservaPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>Cotización Dólar (BNA Venta)</Label>
+                   <Label>Cotización Aplicada ({nationalityType === 'ARGENTINO' ? 'BNA' : 'Payway Turista'})</Label>
                   <div className="relative mt-1">
                     <span className="absolute left-3 top-2.5 text-gray-400">ARS</span>
                     <Input
@@ -417,7 +463,9 @@ export default function NuevaReservaPage() {
                       onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Cotización Oficial referencial.</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                      {nationalityType === 'ARGENTINO' ? 'Dólar Banco Nación Venta' : 'Dólar Tarjeta / Turista'}
+                  </p>
                 </div>
               </div>
 

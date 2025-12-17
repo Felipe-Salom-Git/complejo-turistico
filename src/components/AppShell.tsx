@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onNavigate={handleNavigate}
         />
         <main
-          className={`flex-1 transition-all duration-300 ${
+          className={`flex-1 min-w-0 transition-all duration-300 ${
             sidebarCollapsed ? 'ml-16' : 'ml-64'
           } mt-16 p-6`}
         >
