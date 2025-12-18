@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CalendarIcon, User, Home, CreditCard, Save, Check } from "lucide-react";
+import { CalendarIcon, User, Home, CreditCard, Save, Check, Wand2 } from "lucide-react";
 import { useReservations, UNIT_GROUPS, Reservation } from "@/contexts/ReservationsContext";
 import { useGuests } from "@/contexts/GuestsContext";
 import { useMaintenance } from "@/contexts/MaintenanceContext";
@@ -26,6 +26,8 @@ import { es } from "date-fns/locale";
 import { cn } from "@/components/ui/utils";
 import { Badge } from "@/components/ui/badge";
 import { fetchExchangeRates, ExchangeRates } from "@/lib/currency";
+import { generateRandomReservation } from "@/lib/magic-data";
+import { POLICIES, shouldShowPaymentAlert } from "@/lib/policies";
 
 export default function NuevaReservaPage() {
   const router = useRouter();
@@ -50,7 +52,7 @@ export default function NuevaReservaPage() {
   const [petCharged, setPetCharged] = useState(false);
 
   const [manualBasePrice, setManualBasePrice] = useState<string>("");
-  
+
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");
   const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'ARS'>("USD");
@@ -58,7 +60,7 @@ export default function NuevaReservaPage() {
 
   // Currency State
   const [rates, setRates] = useState<ExchangeRates>({ BNA: 0, PAYWAY: 0 });
-  
+
   // Nationality State
   const [nationalityType, setNationalityType] = useState<"ARGENTINO" | "EXTRANJERO">("ARGENTINO");
   const [nationalityCountry, setNationalityCountry] = useState("");
@@ -66,18 +68,18 @@ export default function NuevaReservaPage() {
   // Fetch Rates on Mount
   useEffect(() => {
     fetchExchangeRates().then(data => {
-        setRates(data);
-        // Set initial exchange rate based on default nationality (ARGENTINO -> BNA)
-        setExchangeRate(data.BNA); 
+      setRates(data);
+      // Set initial exchange rate based on default nationality (ARGENTINO -> BNA)
+      setExchangeRate(data.BNA);
     });
   }, []);
 
   // Update Exchange Rate when Nationality changes
   useEffect(() => {
     if (nationalityType === 'ARGENTINO') {
-        setExchangeRate(rates.BNA);
+      setExchangeRate(rates.BNA);
     } else {
-        setExchangeRate(rates.PAYWAY);
+      setExchangeRate(rates.PAYWAY);
     }
   }, [nationalityType, rates]);
 
@@ -102,9 +104,11 @@ export default function NuevaReservaPage() {
   useEffect(() => {
     if (cancellationPolicy === 'Prepaga') {
       setPaymentAmount(finalTotalUSD.toString());
-      setPaymentCurrency('USD'); 
+      setPaymentCurrency('USD');
     }
   }, [cancellationPolicy, finalTotalUSD]);
+
+
 
   // Submit Handler
   const handleSubmit = () => {
@@ -113,11 +117,17 @@ export default function NuevaReservaPage() {
       return;
     }
 
+    if (!cancellationPolicy) {
+      alert("⚠️ La Política de Cancelación es obligatoria.");
+      return;
+    }
+
     if (checkOut <= checkIn) {
       alert("La fecha de salida debe ser posterior a la de entrada.");
       return;
     }
 
+    // ... unit search ...
     const finalUnit = findAvailableUnit(selectedUnit, checkIn, checkOut, tickets);
 
     if (!finalUnit) {
@@ -125,6 +135,7 @@ export default function NuevaReservaPage() {
       return;
     }
 
+    // ... guest creation ...
     const newGuestId = `G-${Date.now()}`;
     addGuest({
       id: newGuestId,
@@ -136,11 +147,18 @@ export default function NuevaReservaPage() {
       address: "",
       city: "",
       country: nationalityType === 'ARGENTINO' ? 'Argentina' : nationalityCountry,
-      // Pass nationality to guest as well if we added fields there, otherwise country is close enough fallback
       reservationsCount: 1,
       lastVisit: new Date().toISOString().split('T')[0],
       notes: "Creado desde Nueva Reserva Simple"
     });
+
+    // Payment Logic
+    const initialPayment = parseFloat(paymentAmount || "0");
+    const hasDownPayment = initialPayment > 0;
+    const isPrepaid = cancellationPolicy === 'Pre-paga'; // OR balance <= 0? Strict policy check is safer.
+
+    // Alert Logic
+    const showAlert = shouldShowPaymentAlert(cancellationPolicy, checkIn, hasDownPayment, isPrepaid);
 
     const newReservation: Reservation = {
       id: `RES-${Date.now()}`,
@@ -154,11 +172,11 @@ export default function NuevaReservaPage() {
       pax: parseInt(pax),
       totalUSD: finalTotalUSD,
       amountPaidUSD: totalPaidUSD,
-      amountPaid: parseFloat(paymentAmount || "0"),
-      payments: parseFloat(paymentAmount) > 0 ? [{
+      amountPaid: initialPayment,
+      payments: initialPayment > 0 ? [{
         id: Date.now().toString(),
         date: new Date(),
-        amount: parseFloat(paymentAmount),
+        amount: initialPayment,
         currency: paymentCurrency,
         method: paymentMethod as 'Efectivo' | 'Transferencia' | 'Tarjeta',
         invoiceNumber: undefined,
@@ -167,6 +185,13 @@ export default function NuevaReservaPage() {
       observations: "Reserva creada desde el nuevo panel.",
       source: channel,
       cancellationPolicy: cancellationPolicy,
+
+      // New Flags
+      esPrepaga: isPrepaid,
+      tieneSeña: hasDownPayment,
+      fechaSeña: hasDownPayment ? new Date() : undefined,
+      alertaPrecobroActiva: showAlert,
+
       licensePlate: licensePlate,
       hasPet: hasPet,
       petCharged: petCharged,
@@ -189,6 +214,25 @@ export default function NuevaReservaPage() {
     router.push('/calendario');
   };
 
+  const handleMagicFill = () => {
+    const random = generateRandomReservation();
+    setGuestName(random.guestName);
+    setCheckIn(random.checkIn);
+    setCheckOut(random.checkOut);
+    setSelectedUnit(random.unit);
+    setPax(random.pax.toString());
+    setEmail(random.email);
+    setPhone(random.phone);
+    setNationalityAction(random.nacionalidadTipo);
+    if (random.nacionalidad) setNationalityCountry(random.nacionalidad);
+    if (random.price) setManualBasePrice(random.price.toString());
+  }
+
+  // Helper because we need to cast string to type
+  const setNationalityAction = (type: string) => {
+    setNationalityType(type as "ARGENTINO" | "EXTRANJERO");
+  }
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex items-center justify-between mb-8">
@@ -196,7 +240,12 @@ export default function NuevaReservaPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Nueva Reserva</h1>
           <p className="text-muted-foreground">Complete los datos para registrar una nueva estadía.</p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>Cancelar</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleMagicFill} className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+            <Wand2 className="w-4 h-4 mr-2" /> Magic Fill
+          </Button>
+          <Button variant="outline" onClick={() => router.back()}>Cancelar</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -252,40 +301,40 @@ export default function NuevaReservaPage() {
                 </div>
               </div>
 
-               {/* NEW Nationality Section */}
-               <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
-                    <div>
-                        <Label>Nacionalidad (Define Moneda)</Label>
-                         <Select value={nationalityType} onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setNationalityType(v)}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
-                                <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    
-                    {nationalityType === 'EXTRANJERO' && (
-                        <div className="animate-in fade-in">
-                            <Label>País de Origen</Label>
-                             <Select value={nationalityCountry} onValueChange={setNationalityCountry}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar país..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
-                                    <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
-                                    <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
-                                    <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
-                                    <SelectItem value="España">España 🇪🇸</SelectItem>
-                                    <SelectItem value="Otro">Otro</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                 </div>
+              {/* NEW Nationality Section */}
+              <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
+                <div>
+                  <Label>Nacionalidad (Define Moneda)</Label>
+                  <Select value={nationalityType} onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setNationalityType(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
+                      <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {nationalityType === 'EXTRANJERO' && (
+                  <div className="animate-in fade-in">
+                    <Label>País de Origen</Label>
+                    <Select value={nationalityCountry} onValueChange={setNationalityCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar país..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
+                        <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
+                        <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
+                        <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
+                        <SelectItem value="España">España 🇪🇸</SelectItem>
+                        <SelectItem value="Otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
 
             </CardContent>
           </Card>
@@ -442,18 +491,17 @@ export default function NuevaReservaPage() {
                     >
                       <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Seleccionar política..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Non Ref">Non Ref</SelectItem>
-                        <SelectItem value="100% 21 Dias">100% 21 Días</SelectItem>
-                        <SelectItem value="100% 14 Dias">100% 14 Días</SelectItem>
-                        <SelectItem value="50% 14 Dias">50% 14 Días</SelectItem>
-                        <SelectItem value="100% 2 Dias">100% 2 Días</SelectItem>
-                        <SelectItem value="Prepaga">Prepaga</SelectItem>
+                        {POLICIES.map(p => (
+                          <SelectItem key={p.value} value={p.value} className="text-xs">
+                            {p.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div>
-                   <Label>Cotización Aplicada ({nationalityType === 'ARGENTINO' ? 'BNA' : 'Payway Turista'})</Label>
+                  <Label>Cotización Aplicada ({nationalityType === 'ARGENTINO' ? 'BNA' : 'Payway Turista'})</Label>
                   <div className="relative mt-1">
                     <span className="absolute left-3 top-2.5 text-gray-400">ARS</span>
                     <Input
@@ -464,7 +512,7 @@ export default function NuevaReservaPage() {
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                      {nationalityType === 'ARGENTINO' ? 'Dólar Banco Nación Venta' : 'Dólar Tarjeta / Turista'}
+                    {nationalityType === 'ARGENTINO' ? 'Dólar Banco Nación Venta' : 'Dólar Tarjeta / Turista'}
                   </p>
                 </div>
               </div>

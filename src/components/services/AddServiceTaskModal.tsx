@@ -11,24 +11,36 @@ import { useStaff } from '@/contexts/StaffContext';
 import { INVENTORY } from '@/contexts/ReservationsContext';
 import { useServices, ServiceType } from '@/contexts/ServicesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { generateRandomTask, getRandomElement } from '@/lib/magic-data';
+import { Wand2 } from 'lucide-react';
 
 interface AddServiceTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
+    defaultUnit?: string;
 }
 
-export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProps) {
+export function AddServiceTaskModal({ isOpen, onClose, defaultUnit }: AddServiceTaskModalProps) {
     const { maids } = useStaff();
     const { addTask } = useServices();
     const { user } = useAuth();
 
     // Form State
     const [selectedMaid, setSelectedMaid] = useState('');
-    const [selectedUnit, setSelectedUnit] = useState<string>('none');
+    const [selectedUnit, setSelectedUnit] = useState<string>(defaultUnit || 'none');
     const [selectedCommonSpace, setSelectedCommonSpace] = useState<string>('none');
+
+    // Effect to update if prop changes
+    React.useEffect(() => {
+        if (isOpen && defaultUnit) {
+            setSelectedUnit(defaultUnit);
+            setSelectedCommonSpace('none');
+        }
+    }, [isOpen, defaultUnit]);
     const [serviceType, setServiceType] = useState<ServiceType>('Servicio completo' as ServiceType);
     const [passengers, setPassengers] = useState('');
     const [extraTask, setExtraTask] = useState('');
+    const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
 
     const COMMON_SPACES = ['Quincho', 'Escaleras', 'Pasillos', 'Estacionamiento'];
 
@@ -37,6 +49,17 @@ export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProp
         if (val !== 'none') {
             setSelectedCommonSpace('none');
         }
+    };
+
+    const handleMagicFill = () => {
+        const random = generateRandomTask();
+        // Pick random maid
+        if (maids.length > 0) {
+            setSelectedMaid(getRandomElement(maids).id.toString());
+        }
+        setSelectedUnit(random.unit);
+        setExtraTask(random.task);
+        if (random.priority === 'alta') setServiceType('Check-out'); // Just some variety
     };
 
     const handleCommonSpaceChange = (val: string) => {
@@ -65,6 +88,7 @@ export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProp
             tipoServicio: serviceType,
             cantidadPasajeros: (serviceType === 'Check-in' || serviceType === 'Out + In') ? parseInt(passengers) || undefined : undefined,
             descripcionExtra: extraTask,
+            fechaProgramada: scheduledDate,
             creadaPor: user?.name || 'Admin',
         });
 
@@ -75,6 +99,7 @@ export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProp
         setServiceType('Servicio completo' as ServiceType);
         setPassengers('');
         setExtraTask('');
+        setScheduledDate(new Date().toISOString().split('T')[0]);
         onClose();
     };
 
@@ -142,7 +167,15 @@ export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProp
                         </div>
                     </div>
 
-                    {/* Service Type */}
+                    {/* Scheduled Date */}
+                    <div className="space-y-2">
+                        <Label>Fecha Programada</Label>
+                        <Input
+                            type="date"
+                            value={scheduledDate}
+                            onChange={(e) => setScheduledDate(e.target.value)}
+                        />
+                    </div>
                     <div className="space-y-2">
                         <Label>Tipo de Servicio</Label>
                         <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
@@ -185,6 +218,11 @@ export function AddServiceTaskModal({ isOpen, onClose }: AddServiceTaskModalProp
                 </div>
 
                 <DialogFooter>
+                    <div className="flex-1 flex justify-start">
+                        <Button type="button" variant="ghost" size="sm" onClick={handleMagicFill} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                            <Wand2 className="w-3 h-3 mr-1" /> Autocompletar
+                        </Button>
+                    </div>
                     <Button variant="outline" onClick={onClose}>Cancelar</Button>
                     <Button onClick={handleSubmit}>Asignar Tarea</Button>
                 </DialogFooter>

@@ -17,9 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, Edit, Trash2, Send, Plus, FileText, Calendar as CalendarIcon, ChevronDown, Building, UserX, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Edit, Trash2, XCircle, CreditCard, Banknote, Building, UserX, ChevronDown, CheckCircle2, AlertCircle, Droplets, SprayCan, Send, Plus, FileText } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { getCleaningTasks } from '@/lib/calendar-logic';
 import { cn } from '@/components/ui/utils';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -64,28 +66,28 @@ export default function ReservationDetailsPage() {
   // Update Exchange Rate in Edit Mode when Nationality Changes
   useEffect(() => {
     if (isEditing && editValues) {
-        if (editValues.nacionalidadTipo === 'ARGENTINO') {
-            // Apply BNA if not already set or if user wants auto-update (we assume auto-update on type change for now)
-            // But we must be careful not to overwrite manual edits if we allow them. 
-            // For now, valid logic: Type change -> Update Rate.
-            if (editValues.tipoCambioFuente !== 'BNA_VENTA') {
-                 setEditValues(prev => prev ? ({ 
-                    ...prev, 
-                    tipoCambioFuente: 'BNA_VENTA', 
-                    exchangeRate: rates.BNA,
-                    montoARS: (prev.totalUSD || 0) * rates.BNA 
-                 }) : null);
-            }
-        } else if (editValues.nacionalidadTipo === 'EXTRANJERO') {
-             if (editValues.tipoCambioFuente !== 'PAYWAY_TURISTA') {
-                 setEditValues(prev => prev ? ({ 
-                    ...prev, 
-                    tipoCambioFuente: 'PAYWAY_TURISTA', 
-                    exchangeRate: rates.PAYWAY,
-                    montoARS: (prev.totalUSD || 0) * rates.PAYWAY 
-                 }) : null);
-            }
+      if (editValues.nacionalidadTipo === 'ARGENTINO') {
+        // Apply BNA if not already set or if user wants auto-update (we assume auto-update on type change for now)
+        // But we must be careful not to overwrite manual edits if we allow them. 
+        // For now, valid logic: Type change -> Update Rate.
+        if (editValues.tipoCambioFuente !== 'BNA_VENTA') {
+          setEditValues(prev => prev ? ({
+            ...prev,
+            tipoCambioFuente: 'BNA_VENTA',
+            exchangeRate: rates.BNA,
+            montoARS: (prev.totalUSD || 0) * rates.BNA
+          }) : null);
         }
+      } else if (editValues.nacionalidadTipo === 'EXTRANJERO') {
+        if (editValues.tipoCambioFuente !== 'PAYWAY_TURISTA') {
+          setEditValues(prev => prev ? ({
+            ...prev,
+            tipoCambioFuente: 'PAYWAY_TURISTA',
+            exchangeRate: rates.PAYWAY,
+            montoARS: (prev.totalUSD || 0) * rates.PAYWAY
+          }) : null);
+        }
+      }
     }
   }, [editValues?.nacionalidadTipo, isEditing, rates]);
 
@@ -107,14 +109,17 @@ export default function ReservationDetailsPage() {
   // Fetch rate for payment form
   useEffect(() => {
     if (currency === 'ARS') {
-      fetch('https://dolarapi.com/v1/dolares/oficial')
-        .then(res => res.json())
-        .then(data => { if (data && data.venta) setExchangeRate(data.venta); })
-        .catch(err => console.error(err));
+      if (reservation?.nacionalidadTipo === 'EXTRANJERO') {
+        // Use stored Payway rate
+        setExchangeRate(rates.PAYWAY);
+      } else {
+        // Use stored BNA rate
+        setExchangeRate(rates.BNA);
+      }
     } else {
       setExchangeRate(1); // 1:1 for USD
     }
-  }, [currency]);
+  }, [currency, reservation?.nacionalidadTipo, rates]);
 
   if (isLoading) return <div className="p-8">Cargando reserva...</div>;
   if (!reservation || !editValues) return (
@@ -410,64 +415,64 @@ export default function ReservationDetailsPage() {
                         <Input value={editValues.phone || ''} onChange={e => setEditValues({ ...editValues, phone: e.target.value })} className="mt-1" />
                       </div>
                     </div>
-                  
-                  {/* Nationality Edit Section */}
-                  <div className="pt-4 border-t mt-4 grid grid-cols-2 gap-4">
-                     <div>
+
+                    {/* Nationality Edit Section */}
+                    <div className="pt-4 border-t mt-4 grid grid-cols-2 gap-4">
+                      <div>
                         <Label>Nacionalidad</Label>
                         <Select
-                            value={editValues.nacionalidadTipo || "ARGENTINO"}
-                            onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setEditValues({ ...editValues, nacionalidadTipo: v })}
+                          value={editValues.nacionalidadTipo || "ARGENTINO"}
+                          onValueChange={(v: "ARGENTINO" | "EXTRANJERO") => setEditValues({ ...editValues, nacionalidadTipo: v })}
                         >
-                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
-                                <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
-                            </SelectContent>
+                          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ARGENTINO">Argentino 🇦🇷</SelectItem>
+                            <SelectItem value="EXTRANJERO">Extranjero 🌎</SelectItem>
+                          </SelectContent>
                         </Select>
-                     </div>
-                     {editValues.nacionalidadTipo === 'EXTRANJERO' && (
-                         <div>
-                            <Label>País</Label>
-                             <Select 
-                                value={editValues.nacionalidad || ""} 
-                                onValueChange={(v) => setEditValues({...editValues, nacionalidad: v})}
-                             >
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Seleccionar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
-                                    <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
-                                    <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
-                                    <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
-                                    <SelectItem value="España">España 🇪🇸</SelectItem>
-                                    <SelectItem value="Otro">Otro</SelectItem>
-                                </SelectContent>
-                            </Select>
-                         </div>
-                     )}
-                  </div>
+                      </div>
+                      {editValues.nacionalidadTipo === 'EXTRANJERO' && (
+                        <div>
+                          <Label>País</Label>
+                          <Select
+                            value={editValues.nacionalidad || ""}
+                            onValueChange={(v) => setEditValues({ ...editValues, nacionalidad: v })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Brasil">Brasil 🇧🇷</SelectItem>
+                              <SelectItem value="Uruguay">Uruguay 🇺🇾</SelectItem>
+                              <SelectItem value="Chile">Chile 🇨🇱</SelectItem>
+                              <SelectItem value="Estados Unidos">Estados Unidos 🇺🇸</SelectItem>
+                              <SelectItem value="España">España 🇪🇸</SelectItem>
+                              <SelectItem value="Otro">Otro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
+                      <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
                         {reservation.guestName.charAt(0)}
-                        </div>
-                        <div>
+                      </div>
+                      <div>
                         <p className="font-bold text-lg">{reservation.guestName}</p>
                         <div className="flex flex-col text-sm text-muted-foreground">
-                            <span>{reservation.email || 'Sin email'}</span>
-                            <span>{reservation.phone || 'Sin teléfono'}</span>
+                          <span>{reservation.email || 'Sin email'}</span>
+                          <span>{reservation.phone || 'Sin teléfono'}</span>
                         </div>
-                        </div>
+                      </div>
                     </div>
                     {/* View Mode Nationality */}
                     <div className="mt-2 pl-16">
-                            <Badge variant="secondary" className="mr-2 text-xs">
-                                {reservation.nacionalidadTipo === 'ARGENTINO' ? '🇦🇷 Argentino' : `🌎 ${reservation.nacionalidad || 'Extranjero'}`}
-                            </Badge>
+                      <Badge variant="secondary" className="mr-2 text-xs">
+                        {reservation.nacionalidadTipo === 'ARGENTINO' ? '🇦🇷 Argentino' : `🌎 ${reservation.nacionalidad || 'Extranjero'}`}
+                      </Badge>
                     </div>
                   </>
                 )}
@@ -572,36 +577,181 @@ export default function ReservationDetailsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between items-center">
-                      <Badge variant="outline" className="text-lg font-bold border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-1">
-                        {reservation.unit}
-                      </Badge>
-                      <span className="text-base text-muted-foreground font-medium">{reservation.pax} Personas • {nights} Noches</span>
-                    </div>
+                    {reservation.segments && reservation.segments.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-sm font-semibold text-indigo-700">Itinerario Completo</h4>
+                          <span className="text-xs text-muted-foreground">{nights} noches total</span>
+                        </div>
+                        <div className="rounded-lg border overflow-hidden">
+                          {reservation.segments.map((seg, idx) => (
+                            <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 border-b last:border-0 hover:bg-white transition-colors">
+                              <div className="flex flex-col">
+                                <Badge variant="outline" className="w-fit mb-1 border-indigo-200 bg-indigo-50 text-indigo-700">{seg.unit}</Badge>
+                                <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                  {new Date(seg.checkIn).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} - {new Date(seg.checkOut).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-gray-700">
+                                  {Math.ceil((new Date(seg.checkOut).getTime() - new Date(seg.checkIn).getTime()) / (1000 * 60 * 60 * 24))} Noches
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-3 pt-3 border-t">
+                          <div>
+                            <span className="text-xs text-gray-400 uppercase font-bold block">Mascota</span>
+                            <span className="font-medium">{reservation.hasPet ? `Sí ${reservation.petCharged ? '($)' : '(Free)'}` : 'No'}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-400 uppercase font-bold block">Pax</span>
+                            <span className="font-medium">{reservation.pax} Personas</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-lg font-bold border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-1">
+                            {reservation.unit}
+                          </Badge>
+                          <span className="text-base text-muted-foreground font-medium">{reservation.pax} Personas • {nights} Noches</span>
+                        </div>
 
-                    <div className="flex gap-4">
-                      <div className="flex-1 bg-gray-50 p-3 rounded-lg border text-center">
-                        <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Check-in</span>
-                        <span className="font-bold text-lg">{new Date(reservation.checkIn).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
-                      </div>
-                      <div className="flex-1 bg-gray-50 p-3 rounded-lg border text-center">
-                        <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Check-out</span>
-                        <span className="font-bold text-lg">{new Date(reservation.checkOut).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
-                      </div>
-                    </div>
+                        <div className="flex gap-4">
+                          <div className="flex-1 bg-gray-50 p-3 rounded-lg border text-center">
+                            <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Check-in</span>
+                            <span className="font-bold text-lg">{new Date(reservation.checkIn).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                          </div>
+                          <div className="flex-1 bg-gray-50 p-3 rounded-lg border text-center">
+                            <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Check-out</span>
+                            <span className="font-bold text-lg">{new Date(reservation.checkOut).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-sm mt-2">
-                      <div>
-                        <span className="text-xs text-gray-400 uppercase font-bold block">Mascota</span>
-                        <span className="font-medium">{reservation.hasPet ? `Sí ${reservation.petCharged ? '($)' : '(Free)'}` : 'No'}</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-gray-400 uppercase font-bold block">Patente Vehículo</span>
-                        <span className="font-medium">{reservation.licensePlate || '-'}</span>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                          <div>
+                            <span className="text-xs text-gray-400 uppercase font-bold block">Mascota</span>
+                            <span className="font-medium">{reservation.hasPet ? `Sí ${reservation.petCharged ? '($)' : '(Free)'}` : 'No'}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-400 uppercase font-bold block">Patente Vehículo</span>
+                            <span className="font-medium">{reservation.licensePlate || '-'}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
+              </div>
+
+              {/* Cleaning Schedule Toggle Section */}
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-sm uppercase text-emerald-600 tracking-wider flex items-center gap-2">
+                    <SprayCan className="w-4 h-4" /> Cronograma de Servicios
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  {/* List of Scheduled Cleanings */}
+                  {(() => {
+                    // Use editValues if editing, otherwise direct reservation
+                    const sourceSchedule = isEditing
+                      ? (editValues.cleaningSchedule || [])
+                      : (reservation.cleaningSchedule || getCleaningTasks(reservation));
+
+                    // We need to ensure we work with a valid array
+                    const safeSchedule = Array.isArray(sourceSchedule) ? sourceSchedule : [];
+
+                    if (safeSchedule.length === 0) {
+                      return <p className="text-sm text-muted-foreground italic">No hay servicios programados.</p>;
+                    }
+
+                    return safeSchedule
+                      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                      .map((task, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-slate-50 border border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${task.type === 'toallas' ? 'bg-cyan-100 text-cyan-600' : 'bg-purple-100 text-purple-600'}`}>
+                              {task.type === 'toallas' ? <Droplets className="w-4 h-4" /> : <SprayCan className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{task.type === 'toallas' ? 'Recambio de Toallas' : 'Limpieza Completa'}</p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {new Date(task.date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                              </p>
+                            </div>
+                          </div>
+                          {isEditing && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                const newSchedule = safeSchedule.filter((_, i) => i !== idx);
+                                setEditValues({ ...editValues, cleaningSchedule: newSchedule });
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ));
+                  })()}
+
+                  {/* Add New Service (Edit Mode Only) */}
+                  {isEditing && (
+                    <div className="border-t pt-3 mt-3">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">Agregar Nuevo Servicio</Label>
+                      <div className="flex gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1 gap-1 border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100">
+                              <Plus className="w-3 h-3" /> Toallas
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              onSelect={(date) => {
+                                if (date) {
+                                  const newTask = { id: `manual-${Date.now()}`, date, type: 'toallas' as const, unit: editValues.unit };
+                                  setEditValues({ ...editValues, cleaningSchedule: [...(editValues.cleaningSchedule || []), newTask] });
+                                }
+                              }}
+                              fromDate={new Date(editValues.checkIn)}
+                              toDate={new Date(editValues.checkOut)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1 gap-1 border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100">
+                              <Plus className="w-3 h-3" /> Completo
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              onSelect={(date) => {
+                                if (date) {
+                                  const newTask = { id: `manual-${Date.now()}`, date, type: 'completo' as const, unit: editValues.unit };
+                                  setEditValues({ ...editValues, cleaningSchedule: [...(editValues.cleaningSchedule || []), newTask] });
+                                }
+                              }}
+                              fromDate={new Date(editValues.checkIn)}
+                              toDate={new Date(editValues.checkOut)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Quick Actions */}
@@ -695,10 +845,10 @@ export default function ReservationDetailsPage() {
                       <span className="font-mono text-xl text-gray-800 font-bold block">ARS $ {((reservation.balance_usd || getBalanceUSD(reservation)) * (reservation.exchangeRate || exchangeRate || 0)).toLocaleString()}</span>
                       <div className="flex flex-col items-end">
                         <span className="text-[10px] text-gray-400">
-                            Cotización: ${reservation.exchangeRate || exchangeRate || 0} 
+                          Cotización: ${reservation.exchangeRate || exchangeRate || 0}
                         </span>
                         <span className="text-[9px] text-emerald-600 font-bold uppercase">
-                            {reservation.tipoCambioFuente === 'BNA_VENTA' ? 'Dólar BNA' : reservation.tipoCambioFuente === 'PAYWAY_TURISTA' ? 'Payway / MEP' : 'Manual'}
+                          {reservation.tipoCambioFuente === 'BNA_VENTA' ? 'Dólar BNA' : reservation.tipoCambioFuente === 'PAYWAY_TURISTA' ? 'Payway / MEP' : 'Manual'}
                         </span>
                       </div>
                     </div>
@@ -737,7 +887,7 @@ export default function ReservationDetailsPage() {
                   <div className="flex gap-3 justify-end items-center">
                     {currency === 'ARS' && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Cotización:</span>
+                        <span className="text-xs text-gray-500">Cotización ({reservation.nacionalidadTipo === 'EXTRANJERO' ? 'Turista' : 'BNA'}):</span>
                         <Input type="number" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)} className="h-8 w-24 text-xs bg-white text-right" />
                       </div>
                     )}

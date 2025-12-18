@@ -1,17 +1,20 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { CalendarUnit } from '@/lib/calendar-logic';
+import { Ticket } from '@/contexts/MaintenanceContext';
 import { Reservation } from '@/contexts/ReservationsContext';
+import { getAvailabilityStats } from '@/lib/calendar-logic';
 
 interface AvailabilitySummaryProps {
     days: Date[];
     units: CalendarUnit[];
     reservations: Reservation[];
+    tickets: Ticket[]; // New prop
 }
 
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
-export function AvailabilitySummary({ units, days, reservations }: AvailabilitySummaryProps) {
+export function AvailabilitySummary({ units, days, reservations, tickets }: AvailabilitySummaryProps) {
     const types = Array.from(new Set(units.map(u => u.type))).sort((a, b) => {
         const order = ['Unidad Tipo A', 'Unidad Tipo B', 'Unidad Tipo C', 'Unidad Tipo C+', 'Unidad Tipo D', 'Fontana'];
         return order.indexOf(a) - order.indexOf(b);
@@ -19,30 +22,7 @@ export function AvailabilitySummary({ units, days, reservations }: AvailabilityS
 
     const getAvailability = (date: Date, type: string) => {
         const unitsOfType = units.filter(u => u.type === type);
-        const total = unitsOfType.length;
-        
-        const occupied = unitsOfType.filter(unit => {
-            return reservations.some(res => {
-                if (res.unit !== unit.name || res.status === 'cancelled' || res.status === 'no-show') return false;
-                const start = new Date(res.checkIn);
-                const end = new Date(res.checkOut);
-                
-                // If checking out today, it's available for check-in today (usually).
-                // But for "occupancy count" often implies staying over night?
-                // Standard logic: Occupied if date >= checkIn AND date < checkOut.
-                // CheckIn = 20th. Occupied on 20th night.
-                // CheckOut = 25th. Free on 25th day (for new checkin).
-                
-                const d = new Date(date);
-                d.setHours(12, 0, 0, 0);
-                start.setHours(12, 0, 0, 0);
-                end.setHours(12, 0, 0, 0);
-                
-                return d >= start && d < end;
-            });
-        }).length;
-
-        return { total, occupied, available: total - occupied };
+        return getAvailabilityStats(unitsOfType, date, reservations, tickets);
     };
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -52,7 +32,7 @@ export function AvailabilitySummary({ units, days, reservations }: AvailabilityS
         if (scrollRef.current) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            
+
             const todayIndex = days.findIndex(d => {
                 const dDate = new Date(d);
                 dDate.setHours(0, 0, 0, 0);
@@ -72,9 +52,9 @@ export function AvailabilitySummary({ units, days, reservations }: AvailabilityS
             <div className="p-4 border-b bg-white relative z-10">
                 <h3 className="text-sm font-semibold">Disponibilidad Diaria</h3>
             </div>
-            
-            <div 
-                className={`overflow-x-auto relative ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`} 
+
+            <div
+                className={`overflow-x-auto relative ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                 ref={scrollRef}
                 onMouseDown={onMouseDown}
                 onMouseUp={onMouseUp}
@@ -125,7 +105,7 @@ export function AvailabilitySummary({ units, days, reservations }: AvailabilityS
                                 {days.map((day, i) => {
                                     const { available, occupied } = getAvailability(day, type); // Fixed arg order
                                     const isFull = available === 0;
-                                    
+
                                     return (
                                         <div key={i} className={`w-20 flex-shrink-0 p-2 text-center border-r last:border-r-0 flex flex-col justify-center ${isFull ? 'bg-red-50 text-red-800' : ''}`}>
                                             <div>
@@ -141,7 +121,7 @@ export function AvailabilitySummary({ units, days, reservations }: AvailabilityS
                     </div>
                 </div>
             </div>
-            
+
             <div className="p-4 border-t text-xs text-muted-foreground bg-white">
                 <div className="flex gap-4">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-600"></span> Verde: Disponibles</span>

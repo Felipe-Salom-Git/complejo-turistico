@@ -1,16 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { ClipboardList, ShieldAlert } from 'lucide-react';
+import { ClipboardList, ShieldAlert, Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useServices } from '@/contexts/ServicesContext';
 import { useStaff } from '@/contexts/StaffContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TaskItem } from '@/components/services/TaskItem';
+import { AddServiceTaskModal } from '@/components/services/AddServiceTaskModal';
 
 export default function ControlServiciosPage() {
-    const { tasks, completeTask, updateObservation } = useServices();
+    const { tasks, completeTask, updateObservation, clearAllTasks } = useServices();
     const { maids } = useStaff();
+    const { user } = useAuth();
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const getTasksByMaid = (maidId: string) => {
         return tasks.filter(t => t.mucamaId === maidId);
@@ -34,6 +39,25 @@ export default function ControlServiciosPage() {
                         <h1 className="text-2xl font-bold">Control de Servicios</h1>
                         <p className="text-gray-500">Vista de desarrollador / tester</p>
                     </div>
+                </div>
+                <div className="flex gap-2">
+                    {user?.name === 'GreenDevs' && (
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (confirm('¿Seguro que quieres eliminar TODAS las tareas?')) {
+                                    clearAllTasks();
+                                }
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar Todo
+                        </Button>
+                    )}
+                    <Button onClick={() => setIsAddModalOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nueva Tarea
+                    </Button>
                 </div>
             </div>
 
@@ -89,6 +113,11 @@ export default function ControlServiciosPage() {
                     })}
                 </Tabs>
             )}
+
+            <AddServiceTaskModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+            />
         </div>
     );
 }

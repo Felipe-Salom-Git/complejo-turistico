@@ -12,14 +12,17 @@ interface CalendarGridProps {
     tickets: Ticket[];
     onDragStart: (e: React.DragEvent, res: Reservation) => void;
     onDrop: (e: React.DragEvent, unit: string, date: Date) => void;
+    onDragOver: (e: React.DragEvent, unit: string, date: Date) => void;
+    ghostOverlay: { unit: string; checkIn: Date; checkOut: Date; isValid: boolean; } | null;
     onContextMenu: (e: React.MouseEvent, res: Reservation) => void;
+    onCellClick: (unit: string, date: Date, res?: Reservation) => void;
 }
 
 const DAYS_OF_WEEK = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 import { useDraggableScroll } from '@/hooks/useDraggableScroll';
 
-export function CalendarGrid({ units, days, reservations, tickets, onDragStart, onDrop, onContextMenu }: CalendarGridProps) {
+export function CalendarGrid({ units, days, reservations, tickets, onDragStart, onDrop, onDragOver, ghostOverlay, onContextMenu, onCellClick }: CalendarGridProps) {
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const { onMouseDown, onMouseUp, onMouseMove, onMouseLeave, isDragging } = useDraggableScroll(scrollRef);
 
@@ -27,7 +30,7 @@ export function CalendarGrid({ units, days, reservations, tickets, onDragStart, 
         if (scrollRef.current) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            
+
             // Find index of today in days array
             const todayIndex = days.findIndex(d => {
                 const dDate = new Date(d);
@@ -50,7 +53,7 @@ export function CalendarGrid({ units, days, reservations, tickets, onDragStart, 
 
     return (
         <Card className="overflow-hidden border shadow-sm">
-            <div 
+            <div
                 className={`overflow-x-auto relative ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                 ref={scrollRef}
                 onMouseDown={onMouseDown}
@@ -61,14 +64,14 @@ export function CalendarGrid({ units, days, reservations, tickets, onDragStart, 
                 <div className="inline-block min-w-full">
                     {/* Header Row */}
                     <div className="flex border-b bg-muted/50 sticky top-0 z-30">
-                        <div className="w-32 flex-shrink-0 p-3 border-r bg-background sticky left-0 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                            <span className="font-bold text-sm text-muted-foreground">Unidad</span>
+                        <div className="w-24 flex-shrink-0 px-2 py-1 border-r bg-background sticky left-0 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                            <span className="font-bold text-xs text-muted-foreground">Unidad ({units.length})</span>
                         </div>
                         {days.map((day, index) => {
                             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                             // Show month name if it's the first day of the grid OR the first day of a month
                             const showMonthString = index === 0 || day.getDate() === 1;
-                            
+
                             return (
                                 <div key={index} className={`w-20 flex-shrink-0 p-2 border-r last:border-r-0 text-center relative ${isWeekend ? 'bg-muted/30' : ''}`}>
                                     {showMonthString && (
@@ -94,7 +97,10 @@ export function CalendarGrid({ units, days, reservations, tickets, onDragStart, 
                                 tickets={tickets}
                                 onDragStart={onDragStart}
                                 onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                ghostOverlay={ghostOverlay}
                                 onContextMenu={onContextMenu}
+                                onCellClick={onCellClick}
                             />
                         ))}
                     </div>

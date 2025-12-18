@@ -28,19 +28,20 @@ export function CheckInWidget() {
   const { reservations, updateReservation, checkIn } = useReservations();
   const [selectedRes, setSelectedRes] = useState<Reservation | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [exchangeRate, setExchangeRate] = useState(0);
   const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'ARS'>('USD');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
 
+  const [rates, setRates] = useState({ BNA: 0, PAYWAY: 0 });
+  const [exchangeRate, setExchangeRate] = useState(0); // Holds the currently selected rate causing defaults
+
   useEffect(() => {
-    fetch('https://dolarapi.com/v1/dolares/oficial')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.venta) {
-          setExchangeRate(data.venta);
-        }
-      })
-      .catch(err => console.error("Error fetching BNA rate:", err));
+    import('@/lib/currency').then(({ fetchExchangeRates }) => {
+      fetchExchangeRates().then(data => {
+        setRates(data);
+        // Default to BNA if nothing selected, though we usually re-calc on selection
+        setExchangeRate(data.BNA);
+      });
+    });
   }, []);
 
   const today = new Date();
@@ -56,6 +57,17 @@ export function CheckInWidget() {
     return d.toISOString().split('T')[0] === todayStr;
     // Note: If todayStr is "2025-12-13" (local), and d is 2025-12-13T00:00Z, the split gives "2025-12-13". Match!
   });
+
+  // Determine rate based on selected reservation
+  useEffect(() => {
+    if (selectedRes) {
+      if (selectedRes.nacionalidadTipo === 'EXTRANJERO') {
+        setExchangeRate(rates.PAYWAY);
+      } else {
+        setExchangeRate(rates.BNA);
+      }
+    }
+  }, [selectedRes, rates]);
 
   const handlePayment = () => {
     if (!selectedRes || !paymentAmount) return;
@@ -139,11 +151,10 @@ export function CheckInWidget() {
                           {balance > 0 ? (
                             <div className="flex flex-col items-end">
                               <span className="text-red-500 font-medium">Deb: USD {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              {exchangeRate > 0 && (
-                                <span className="text-[10px] text-gray-500">
-                                  (~ARS ${(balance * exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                                </span>
-                              )}
+                              {/* Estimate using their probable rate */}
+                              <span className="text-[10px] text-gray-500">
+                                (~ARS ${(balance * (res.nacionalidadTipo === 'EXTRANJERO' ? rates.PAYWAY : rates.BNA)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                              </span>
                             </div>
                           ) : (
                             <span className="text-green-500">Pagado</span>
@@ -259,6 +270,11 @@ export function CheckInWidget() {
                       onChange={(e) => setPaymentAmount(e.target.value)}
                     />
                   </div>
+                  {paymentCurrency === 'ARS' && (
+                    <div className="col-span-2 text-xs text-right text-gray-500">
+                      Cotización: ${exchangeRate.toLocaleString('es-AR')} ({selectedRes.nacionalidadTipo === 'EXTRANJERO' ? 'Turista/MEP' : 'Oficial BNA'})
+                    </div>
+                  )}
                   <Select value={paymentCurrency} onValueChange={(v) => setPaymentCurrency(v as "USD" | "ARS")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>

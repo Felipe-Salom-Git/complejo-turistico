@@ -1,4 +1,4 @@
-import { Reservation, UNIT_GROUPS } from '@/contexts/ReservationsContext';
+import { Reservation, UNIT_GROUPS, CleaningTask } from '@/contexts/ReservationsContext';
 
 export interface CalendarUnit {
     id: string;
@@ -55,12 +55,6 @@ export const generateDaysRange = (from: Date, to: Date): Date[] => {
 };
 
 // Generate Cleaning Tasks based on Reservation
-export interface CleaningTask {
-    id: string;
-    date: Date;
-    type: 'toallas' | 'completo';
-    unit: string;
-}
 export const getCleaningTasks = (reservation: Reservation): CleaningTask[] => {
     const cleanings: CleaningTask[] = [];
     const start = new Date(reservation.checkIn);
@@ -70,26 +64,49 @@ export const getCleaningTasks = (reservation: Reservation): CleaningTask[] => {
     const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     // Rule: Every 3 days.
-    // 3rd day -> Towels
-    // 6th day -> Complete
-    // 9th day -> Towels
-    // 12th day -> Complete ...
+    // If 3 days -> 0 cleanings (Leaves on 3rd day)
+    // If 4 days -> 1 cleaning
+    // If 6 days -> 1 cleaning (Last one would be checkout day, so we skip/redistribute to be even)
+    // If 7 days -> 2 cleanings
 
-    let cleaningCount = 0;
-    for (let dayOffset = 3; dayOffset < duration; dayOffset += 3) {
-        cleaningCount++;
-        const date = new Date(start);
-        date.setDate(start.getDate() + dayOffset);
+    // Rule:
+    // 1. Max gap between services (including check-in/out) <= 3 days.
+    // 2. Min gap >= 2 days.
+    // 3. Equitable distribution.
+    // Algorithm: Segments = ceil(Duration / 3).
+    // This ensures no segment > 3.
+    // Mathematically ensures segment >= 2 for Duration >= 4.
 
-        // Alternating logic
-        const type = cleaningCount % 2 === 0 ? 'completo' : 'toallas'; // 1=Towels, 2=Complete, 3=Towels...
+    // Duration 3 -> ceil(1) = 1 segment (0 services). Gap 3.
+    // Duration 4 -> ceil(1.33) = 2 segments (1 service). Gap 2.
+    // Duration 7 -> ceil(2.33) = 3 segments (2 services). Gap 2.33. (Days 2, 5).
 
-        cleanings.push({
-            id: `${reservation.id}-clean-${dayOffset}`,
-            date,
-            type,
-            unit: reservation.unit
-        });
+    const numSegments = Math.ceil(duration / 3);
+    const numServices = numSegments - 1;
+
+    if (numServices > 0) {
+        const interval = duration / numSegments;
+
+        for (let i = 1; i <= numServices; i++) {
+            const dayOffset = Math.round(interval * i);
+
+            // Safety check
+            if (dayOffset <= 0 || dayOffset >= duration) continue;
+
+            const date = new Date(start);
+            date.setDate(start.getDate() + dayOffset);
+
+            // Alternating logic: Toallas first, then Completo? or vice versa?
+            // "Recambio de blanco cada 3 dias". Usually towels first.
+            const type = i % 2 !== 0 ? 'toallas' : 'completo';
+
+            cleanings.push({
+                id: `${reservation.id}-clean-${dayOffset}`,
+                date,
+                type,
+                unit: reservation.unit
+            });
+        }
     }
     return cleanings;
 };
@@ -118,4 +135,72 @@ export const getAllUnits = (): CalendarUnit[] => {
             };
         })
     );
+};
+
+// --- Availability Logic ---
+
+import { Ticket } from '@/contexts/MaintenanceContext';
+
+export const getOccupyingReservation = (unitId: string, date: Date, reservations: Reservation[]): Reservation | undefined => {
+    const checkDate = new Date(date);
+    checkDate.setHours(12, 0, 0, 0);
+
+    return reservations.find(res => {
+        if (res.status === 'cancelled' || res.status === 'no-show' || res.status === 'relocated') return false;
+
+        const segments = (res.segments && res.segments.length > 0) ? res.segments : [{ unit: res.unit, checkIn: res.checkIn, checkOut: res.checkOut }];
+
+        return segments.some(seg => {
+            if (seg.unit !== unitId) return false;
+
+            const start = new Date(seg.checkIn);
+            const end = new Date(seg.checkOut);
+
+            const s = new Date(start); s.setHours(12, 0, 0, 0);
+            const e = new Date(end); e.setHours(12, 0, 0, 0);
+
+            return checkDate.getTime() >= s.getTime() && checkDate.getTime() < e.getTime();
+        });
+    });
+};
+
+export const getOccupyingTicket = (unitId: string, date: Date, tickets: Ticket[]): Ticket | undefined => {
+    const checkDate = new Date(date);
+    checkDate.setHours(12, 0, 0, 0);
+
+    return (tickets || []).find(t => {
+        if (!t.blocksAvailability || t.estado === 'completado' || t.unidad !== unitId) return false;
+
+        const parseLocal = (dStr: string | Date | undefined) => {
+            if (!dStr) return new Date();
+            const s = dStr.toString().split('T')[0];
+            const [y, m, d] = s.split('-').map(Number);
+            return new Date(y, m - 1, d, 12, 0, 0, 0);
+        };
+
+        const start = parseLocal(t.fechaInicio || t.fecha);
+        const end = t.fechaFin ? parseLocal(t.fechaFin) : new Date(start);
+
+        return checkDate.getTime() >= start.getTime() && checkDate.getTime() <= end.getTime();
+    });
+};
+
+export const isUnitOccupied = (unitId: string, date: Date, reservations: Reservation[], tickets: Ticket[]): boolean => {
+    return !!getOccupyingReservation(unitId, date, reservations) || !!getOccupyingTicket(unitId, date, tickets);
+};
+
+export const getAvailabilityStats = (units: CalendarUnit[], date: Date, reservations: Reservation[], tickets: Ticket[]) => {
+    let total = 0;
+    let occupied = 0;
+
+    // We can filter units by type outside if needed, this functions calculates for the passed array.
+    total = units.length;
+
+    occupied = units.filter(u => isUnitOccupied(u.name, date, reservations, tickets)).length;
+
+    return {
+        total,
+        occupied,
+        available: total - occupied
+    };
 };

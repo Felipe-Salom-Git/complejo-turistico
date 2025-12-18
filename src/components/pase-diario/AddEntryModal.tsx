@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { generateRandomTask, getRandomElement } from '@/lib/magic-data';
+import { Wand2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,28 +19,36 @@ import { useHandoff, EntryType } from '@/contexts/HandoffContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMaintenance } from '@/contexts/MaintenanceContext';
 import { Badge } from '@/components/ui/badge';
-import { Wrench } from 'lucide-react';
+import { Wrench, Link as LinkIcon } from 'lucide-react';
 import { INVENTORY } from '@/contexts/ReservationsContext';
 import { Switch } from '@/components/ui/switch';
 
 interface AddEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultUnit?: string;
 }
 
-export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
+export function AddEntryModal({ isOpen, onClose, defaultUnit }: AddEntryModalProps) {
   const { addEntry } = useHandoff();
   const { user } = useAuth();
-  const { addTicket } = useMaintenance();
+  const { tickets, updateTicket } = useMaintenance();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<EntryType>('info');
-  const [unit, setUnit] = useState<string>('none');
+  const [unit, setUnit] = useState<string>(defaultUnit || 'none');
+  const [linkedTicketId, setLinkedTicketId] = useState<string>('none');
 
-  // Maintenance Logic
-  const [createTicket, setCreateTicket] = useState(false);
-  const [priority, setPriority] = useState<'urgente' | 'alta' | 'media' | 'baja'>('media');
+  // React to prop change if modal opens
+  React.useEffect(() => {
+    if (isOpen && defaultUnit) setUnit(defaultUnit);
+  }, [isOpen, defaultUnit]);
+
+  // Filter available tickets (e.g., active ones or all)
+  // Showing all for flexibility, or maybe filter out completed ones if desired.
+  // Letting the user decide which ticket to link.
+  const availableTickets = tickets.filter(t => !t.novedadId); // Only unlinked tickets
 
   const handleSubmit = () => {
     if (!title || !description) {
@@ -46,39 +56,40 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
       return;
     }
 
-    let ticketId: number | undefined = undefined;
+    const ticketIdToLink = linkedTicketId !== 'none' ? parseInt(linkedTicketId) : undefined;
 
-    if (createTicket) {
-      ticketId = addTicket({
-        id: 0, // Auto-generated
-        unidad: unit !== 'none' ? unit : 'Sin Unidad',
-        problema: title,
-        descripcion: description,
-        tipo: 'correctivo',
-        prioridad: priority,
-        estado: 'pendiente',
-        fecha: new Date().toISOString().split('T')[0],
-        asignado: ''
-      });
-    }
-
-    addEntry({
+    // 1. Create Entry first
+    const entryId = addEntry({
       title,
       description,
       type,
       unit: unit === 'none' ? undefined : unit,
       createdBy: user?.name || 'Desconocido',
-      ticketId: ticketId
+      ticketId: ticketIdToLink
     });
+
+    // 2. If Ticket selected, update it to link back to Novedad
+    if (ticketIdToLink) {
+      const ticket = tickets.find(t => t.id === ticketIdToLink);
+      if (ticket) {
+        updateTicket({ ...ticket, novedadId: entryId });
+      }
+    }
 
     // Reset and close
     setTitle('');
     setDescription('');
     setType('info');
     setUnit('none');
-    setCreateTicket(false);
-    setPriority('media');
+    setLinkedTicketId('none');
     onClose();
+  };
+
+  const handleMagicFill = () => {
+    const random = generateRandomTask();
+    setTitle(random.task);
+    setDescription(random.notes + " (Auto-generated)");
+    setUnit(random.unit);
   };
 
   return (
@@ -155,39 +166,28 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
             </Select>
           </div>
 
-          {/* Maintenance Integration */}
-          <div className="flex flex-col gap-4 border-t pt-4 mt-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="create-ticket"
-                checked={createTicket}
-                onCheckedChange={setCreateTicket}
-              />
-              <Label htmlFor="create-ticket" className="cursor-pointer font-medium text-slate-700">Generar Ticket de Mantenimiento</Label>
+          {/* Maintenance Linking */}
+          <div className="space-y-2 border-t pt-4 mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Wrench className="w-4 h-4 text-slate-500" />
+              <Label htmlFor="linkTicket">Asociar Ticket Mantenimiento (Opcional)</Label>
             </div>
-
-            {createTicket && (
-              <div className="pl-6 animate-in fade-in slide-in-from-top-1 space-y-3">
-                <div className="space-y-2">
-                  <Label>Prioridad del Ticket</Label>
-                  <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="baja">🟢 Baja</SelectItem>
-                      <SelectItem value="media">🟡 Media</SelectItem>
-                      <SelectItem value="alta">🟠 Alta</SelectItem>
-                      <SelectItem value="urgente">🔴 Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-2">
-                  <Wrench className="w-3 h-3" />
-                  Se creará un ticket automático con la info de arriba
-                </Badge>
-              </div>
-            )}
+            <Select value={linkedTicketId} onValueChange={setLinkedTicketId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar ticket..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px]">
+                <SelectItem value="none">-- Sin Ticket --</SelectItem>
+                {availableTickets.map(t => (
+                  <SelectItem key={t.id} value={t.id.toString()}>
+                    #{t.id} - {t.problema} ({t.unidad})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Solo se muestran tickets que no tienen una novedad asociada.
+            </p>
           </div>
 
         </div>
@@ -196,9 +196,14 @@ export function AddEntryModal({ isOpen, onClose }: AddEntryModalProps) {
             Cancelar
           </Button>
           <Button onClick={handleSubmit} className="bg-[var(--color-primary)]">
-            Registrar Evento {createTicket ? '+ Ticket' : ''}
+            Registrar Evento
           </Button>
         </DialogFooter>
+        <div className="absolute left-6 bottom-6">
+          <Button type="button" variant="ghost" size="sm" onClick={handleMagicFill} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 h-8">
+            <Wand2 className="w-3 h-3 mr-1" /> Magic
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -14,6 +14,8 @@ export interface Ticket {
   fechaInicio?: string; // Para agendamiento
   fechaFin?: string; // Para agendamiento
   asignado: string;
+  blocksAvailability?: boolean;
+  novedadId?: string; // ID de la novedad vinculada
 }
 
 interface MaintenanceContextType {
@@ -21,6 +23,7 @@ interface MaintenanceContextType {
   addTicket: (ticket: Ticket) => number;
   updateTicket: (ticket: Ticket) => void;
   deleteTicket: (id: number) => void;
+  clearAllTickets: () => void;
 }
 
 const MaintenanceContext = createContext<MaintenanceContextType | undefined>(undefined);
@@ -93,8 +96,12 @@ export function MaintenanceProvider({ children }: { children: React.ReactNode })
     setTickets((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const clearAllTickets = () => {
+    setTickets([]);
+  };
+
   return (
-    <MaintenanceContext.Provider value={{ tickets, addTicket, updateTicket, deleteTicket }}>
+    <MaintenanceContext.Provider value={{ tickets, addTicket, updateTicket, deleteTicket, clearAllTickets }}>
       {children}
     </MaintenanceContext.Provider>
   );

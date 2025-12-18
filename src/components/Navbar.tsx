@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 
+import { useAuth } from '@/contexts/AuthContext';
+
 interface NavbarProps {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
@@ -15,6 +17,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ darkMode, setDarkMode, onNavigate }: NavbarProps) {
+  const { user } = useAuth();
   const today = new Date().toLocaleDateString('es-ES', {
     weekday: 'long',
     year: 'numeric',
@@ -38,10 +41,10 @@ export function Navbar({ darkMode, setDarkMode, onNavigate }: NavbarProps) {
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
             <span className="text-sm text-gray-700 dark:text-gray-200">
-              Admin Usuario
+              {user?.name || 'Invitado'}
             </span>
-            <Badge variant="secondary" className="ml-1">
-              Administrador
+            <Badge variant="secondary" className="ml-1 capitalize">
+              {user?.role || 'Visitante'}
             </Badge>
           </div>
 

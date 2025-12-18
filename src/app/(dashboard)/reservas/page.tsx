@@ -41,7 +41,7 @@ export default function Reservas() {
   const getEffectiveStatus = (reserva: Reservation) => {
     // If no payments made, force 'pendiente' visually
     if ((reserva.amountPaidUSD || 0) === 0 && (reserva.amountPaid || 0) === 0) {
-        return 'pendiente';
+      return 'pendiente';
     }
     return reserva.status;
   };
@@ -53,6 +53,7 @@ export default function Reservas() {
       case 'confirmada':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'pendiente':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
       case 'checkout':
       case 'completada':
@@ -67,7 +68,9 @@ export default function Reservas() {
       case 'active': return 'Activa';
       case 'checkout': return 'Check-out';
       case 'cleaning': return 'Limpieza';
-      case 'pendiente': return 'Pendiente';
+      case 'cleaning': return 'Limpieza';
+      case 'pendiente':
+      case 'pending': return 'Pendiente';
       default: return estado;
     }
   };
@@ -149,9 +152,9 @@ export default function Reservas() {
           <CardContent>
             <div className="text-2xl font-bold text-yellow-700">
               {reservations.filter((r) => {
-                 const isCurrentMonth = new Date(r.checkIn).getMonth() === new Date().getMonth() && new Date(r.checkIn).getFullYear() === new Date().getFullYear();
-                 const isUnpaid = (r.amountPaidUSD || 0) === 0 && (r.amountPaid || 0) === 0;
-                 return isCurrentMonth && isUnpaid && r.status !== 'cancelled' && r.status !== 'cleaning';
+                const isCurrentMonth = new Date(r.checkIn).getMonth() === new Date().getMonth() && new Date(r.checkIn).getFullYear() === new Date().getFullYear();
+                const isUnpaid = (r.amountPaidUSD || 0) === 0 && (r.amountPaid || 0) === 0;
+                return isCurrentMonth && isUnpaid && r.status !== 'cancelled' && r.status !== 'cleaning';
               }).length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -169,8 +172,8 @@ export default function Reservas() {
           <CardContent>
             <div className="text-2xl font-bold text-muted-foreground">
               {reservations.filter((r) => {
-                 const isCurrentMonth = new Date(r.checkIn).getMonth() === new Date().getMonth() && new Date(r.checkIn).getFullYear() === new Date().getFullYear();
-                 return r.status === 'cancelled' && isCurrentMonth;
+                const isCurrentMonth = new Date(r.checkIn).getMonth() === new Date().getMonth() && new Date(r.checkIn).getFullYear() === new Date().getFullYear();
+                return r.status === 'cancelled' && isCurrentMonth;
               }).length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -204,7 +207,9 @@ export default function Reservas() {
                 <SelectItem value="active">Activas</SelectItem>
                 <SelectItem value="checkout">Check-out</SelectItem>
                 <SelectItem value="confirmada">Confirmadas</SelectItem>
+                <SelectItem value="confirmada">Confirmadas</SelectItem>
                 <SelectItem value="pendiente">Pendientes</SelectItem>
+                <SelectItem value="pending">Pendientes (Manual)</SelectItem>
                 <SelectItem value="cancelled">Canceladas</SelectItem>
               </SelectContent>
             </Select>
@@ -243,9 +248,9 @@ export default function Reservas() {
                       </TableCell>
                       <TableCell>
                         {reserva.phone ? (
-                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Phone className="w-3 h-3" /> {reserva.phone}
-                           </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Phone className="w-3 h-3" /> {reserva.phone}
+                          </div>
                         ) : '-'}
                       </TableCell>
                       <TableCell>{reserva.unit}</TableCell>
@@ -256,11 +261,11 @@ export default function Reservas() {
                         {reserva.hasPet ? <Dog className="w-4 h-4 text-emerald-600" /> : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell>
-                         {reserva.licensePlate ? (
-                            <div className="flex items-center gap-1 text-xs uppercase font-mono">
-                               <Car className="w-3 h-3 text-muted-foreground" /> {reserva.licensePlate}
-                            </div>
-                         ) : '-'}
+                        {reserva.licensePlate ? (
+                          <div className="flex items-center gap-1 text-xs uppercase font-mono">
+                            <Car className="w-3 h-3 text-muted-foreground" /> {reserva.licensePlate}
+                          </div>
+                        ) : '-'}
                       </TableCell>
                       <TableCell>
                         ${(reserva.totalUSD || 0).toLocaleString('en-US')} USD

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type UserRole = 'admin' | 'user' | 'mucama';
+export type UserRole = 'admin' | 'user' | 'mucama' | 'developer';
 
 export interface User {
   id: string;
@@ -23,15 +23,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Load simple session
-    const stored = localStorage.getItem('auth_user');
-    if (stored) {
-      setUser(JSON.parse(stored));
-    } else {
-      // Default mock login
-      const defaultUser: User = { id: 'u1', name: 'Recepcionista Turno Mañana', role: 'admin' };
-      setUser(defaultUser);
-    }
+    // FORCE LOGIN AS GREENDEVS (As requested by user)
+    const devUser: User = { id: 'dev-001', name: 'GreenDevs', role: 'developer' };
+    setUser(devUser);
+    localStorage.setItem('auth_user', JSON.stringify(devUser));
   }, []);
 
   const login = (name: string, role: UserRole, staffId?: string) => {

@@ -19,7 +19,8 @@ export interface HandoffEntry {
 
 interface HandoffContextType {
   entries: HandoffEntry[];
-  addEntry: (entry: Omit<HandoffEntry, 'id' | 'createdAt' | 'completed' | 'shift'>) => void;
+  addEntry: (entry: Omit<HandoffEntry, 'id' | 'createdAt' | 'completed' | 'shift'>) => string;
+  updateEntry: (id: string, data: Partial<HandoffEntry>) => void;
   toggleComplete: (id: string) => void;
   deleteEntry: (id: string) => void; // Not requested for UI but useful helper
 }
@@ -78,16 +79,22 @@ export function HandoffProvider({ children }: { children: React.ReactNode }) {
     }
   }, [entries, isLoaded]);
 
-  const addEntry = (entryData: Omit<HandoffEntry, 'id' | 'createdAt' | 'completed' | 'shift'>) => {
+  const addEntry = (entryData: Omit<HandoffEntry, 'id' | 'createdAt' | 'completed' | 'shift'>): string => {
     const now = new Date();
+    const id = `he-${Date.now()}`;
     const newEntry: HandoffEntry = {
-      id: `he-${Date.now()}`,
+      id,
       ...entryData,
       createdAt: now.toISOString(),
       completed: false,
       shift: getShift(now)
     };
     setEntries(prev => [newEntry, ...prev]);
+    return id;
+  };
+
+  const updateEntry = (id: string, data: Partial<HandoffEntry>) => {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
   };
 
   const toggleComplete = (id: string) => {
@@ -99,7 +106,7 @@ export function HandoffProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <HandoffContext.Provider value={{ entries, addEntry, toggleComplete, deleteEntry }}>
+    <HandoffContext.Provider value={{ entries, addEntry, updateEntry, toggleComplete, deleteEntry }}>
       {children}
     </HandoffContext.Provider>
   );

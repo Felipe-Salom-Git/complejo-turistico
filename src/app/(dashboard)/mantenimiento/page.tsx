@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, BookOpen } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import { MetricCard } from '@/components/MetricCard';
 import { Wrench, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
 import { useMaintenance, Ticket } from '@/contexts/MaintenanceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { AddTicketModal } from '@/components/maintenance/AddTicketModal'; // Importar Modal
 
 
@@ -32,8 +34,9 @@ import { AddTicketModal } from '@/components/maintenance/AddTicketModal'; // Imp
 export default function Mantenimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
-  const { tickets } = useMaintenance();
-  
+  const { tickets, clearAllTickets } = useMaintenance();
+  const { user } = useAuth();
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
@@ -108,9 +111,9 @@ export default function Mantenimiento() {
 
   const renderTable = (sourceTickets: typeof tickets, title: string) => {
     const filtered = sourceTickets.filter(t => {
-      const matchesSearch = t.problema.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            t.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            t.asignado.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = t.problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.asignado.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPriority = filterPriority === 'all' || t.prioridad === filterPriority;
       return matchesSearch && matchesPriority;
     });
@@ -175,6 +178,13 @@ export default function Mantenimiento() {
                     <TableCell className="max-w-[200px]">
                       <div className="font-medium truncate">{ticket.problema}</div>
                       {ticket.descripcion && <div className="text-xs text-muted-foreground truncate">{ticket.descripcion}</div>}
+                      {ticket.novedadId && (
+                        <Link href="/pase-diario">
+                          <Badge variant="outline" className="mt-1 text-[10px] gap-1 hover:bg-slate-100 cursor-pointer text-indigo-600 border-indigo-200">
+                            <BookOpen className="w-3 h-3" /> Novedad Vinculada
+                          </Badge>
+                        </Link>
+                      )}
                     </TableCell>
                     <TableCell>{getPriorityBadge(ticket.prioridad)}</TableCell>
                     <TableCell>{getStatusBadge(ticket.estado)}</TableCell>
@@ -187,10 +197,10 @@ export default function Mantenimiento() {
                     <TableCell>{ticket.asignado}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleEdit(ticket)}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(ticket)}
                         >
                           Ver / Editar
                         </Button>
@@ -215,10 +225,25 @@ export default function Mantenimiento() {
             Gestión de tickets y tareas de mantenimiento
           </p>
         </div>
-        <Button onClick={handleCreateNew} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Ticket
-        </Button>
+        <div className="flex gap-2">
+          {user?.name === 'GreenDevs' && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirm('¿Seguro que quieres eliminar TODOS los tickets?')) {
+                  clearAllTickets();
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar Todo
+            </Button>
+          )}
+          <Button onClick={handleCreateNew} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90">
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Ticket
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -252,7 +277,7 @@ export default function Mantenimiento() {
         />
       </div>
 
-{renderTable(tickets, "Todos los Tickets")}
+      {renderTable(tickets, "Todos los Tickets")}
 
       {/* Urgent Alerts section kept as is */}
       {ticketsUrgentes > 0 && (
@@ -290,9 +315,9 @@ export default function Mantenimiento() {
         </Card>
       )}
 
-      <AddTicketModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <AddTicketModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         ticketToEdit={editingTicket}
       />
     </div>

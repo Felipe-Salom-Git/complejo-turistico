@@ -18,10 +18,13 @@ interface CalendarTabsProps {
     tickets: Ticket[];
     onDragStart: (e: React.DragEvent, res: Reservation) => void;
     onDrop: (e: React.DragEvent, unit: string, date: Date) => void;
+    onDragOver: (e: React.DragEvent, unit: string, date: Date) => void;
+    ghostOverlay: { unit: string; checkIn: Date; checkOut: Date; isValid: boolean; } | null;
     onContextMenu: (e: React.MouseEvent, res: Reservation) => void;
+    onCellClick: (unit: string, date: Date, res?: Reservation) => void;
 }
 
-export function CalendarTabs({ units, days, reservations, tickets, onDragStart, onDrop, onContextMenu }: CalendarTabsProps) {
+export function CalendarTabs({ units, days, reservations, tickets, onDragStart, onDrop, onDragOver, ghostOverlay, onContextMenu, onCellClick }: CalendarTabsProps) {
     const [search, setSearch] = useState('');
     const [unitFilter, setUnitFilter] = useState('all');
 
@@ -108,10 +111,13 @@ export function CalendarTabs({ units, days, reservations, tickets, onDragStart, 
                     tickets={tickets}
                     onDragStart={onDragStart}
                     onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    ghostOverlay={ghostOverlay}
                     onContextMenu={onContextMenu}
+                    onCellClick={onCellClick}
                 />
 
-                <AvailabilitySummary days={days} units={filteredGaviotas} reservations={reservations} />
+                <AvailabilitySummary days={days} units={filteredGaviotas} reservations={reservations} tickets={tickets} />
             </TabsContent>
 
             <TabsContent value="fontana" className="space-y-4">
@@ -123,10 +129,13 @@ export function CalendarTabs({ units, days, reservations, tickets, onDragStart, 
                     tickets={tickets}
                     onDragStart={onDragStart}
                     onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    ghostOverlay={ghostOverlay}
                     onContextMenu={onContextMenu}
+                    onCellClick={onCellClick}
                 />
 
-                <AvailabilitySummary days={days} units={fontanaUnits} reservations={reservations} />
+                <AvailabilitySummary days={days} units={fontanaUnits} reservations={reservations} tickets={tickets} />
             </TabsContent>
         </Tabs>
     );

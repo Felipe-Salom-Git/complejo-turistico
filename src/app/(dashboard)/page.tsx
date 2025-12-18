@@ -4,6 +4,7 @@ import { MaintenanceWidget } from '@/components/dashboard/MaintenanceWidget';
 import { DailyPassWidget } from '@/components/dashboard/DailyPassWidget';
 import { StaffCleaningWidget } from '@/components/dashboard/StaffCleaningWidget';
 import { AlertsWidget } from '@/components/dashboard/AlertsWidget';
+import { PrepaymentAlertsWidget } from '@/components/dashboard/PrepaymentAlertsWidget';
 
 // Force rebuild
 
@@ -29,6 +30,7 @@ export default function HomePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <PrepaymentAlertsWidget />
         <AlertsWidget />
       </div>
     </div>

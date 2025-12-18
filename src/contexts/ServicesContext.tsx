@@ -15,6 +15,7 @@ export interface ServiceTask {
     estado: 'pendiente' | 'completado';
     esUrgente?: boolean;
     fechaCompletado?: string;
+    fechaProgramada?: string; // YYYY-MM-DD
     observacionMucama?: string;
     fechaCreacion: string;
     creadaPor: string;
@@ -25,6 +26,7 @@ interface ServicesContextType {
     addTask: (task: Omit<ServiceTask, 'id' | 'fechaCreacion' | 'estado' | 'fechaCompletado'>) => void;
     completeTask: (id: string, completed: boolean) => void;
     updateObservation: (id: string, observation: string) => void;
+    clearAllTasks: () => void;
 }
 
 const ServicesContext = createContext<ServicesContextType | undefined>(undefined);
@@ -84,8 +86,12 @@ export function ServicesProvider({ children }: { children: React.ReactNode }) {
         setTasks(prev => prev.map(t => t.id === id ? { ...t, observacionMucama: observation } : t));
     };
 
+    const clearAllTasks = () => {
+        setTasks([]);
+    };
+
     return (
-        <ServicesContext.Provider value={{ tasks, addTask, completeTask, updateObservation }}>
+        <ServicesContext.Provider value={{ tasks, addTask, completeTask, updateObservation, clearAllTasks }}>
             {children}
         </ServicesContext.Provider>
     );
